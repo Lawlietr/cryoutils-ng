@@ -1,4 +1,4 @@
-module cryoutilities
+module cryoutils-ng
 
 go 1.20
 

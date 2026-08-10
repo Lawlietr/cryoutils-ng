@@ -31,12 +31,12 @@ func InitUI() {
 	// Create a Fyne application
 	screenSizer := NewScreenSizer()
 	screenSizer.UpdateScaleForActiveMonitor()
-	fyneApp := app.NewWithID("io.cryobyte.cryoutilities")
+	fyneApp := app.NewWithID("io.cryoutils-ng")
 	CryoUtils.App = fyneApp
 	CryoUtils.App.SetIcon(ResourceIconPng)
 
 	// Show and run the app
-	title := "CryoUtilities " + CurrentVersionNumber
+	title := "CryoUtils NG " + CurrentVersionNumber
 	CryoUtils.MainWindow = fyneApp.NewWindow(title)
 	CryoUtils.makeUI()
 	CryoUtils.MainWindow.CenterOnScreen()

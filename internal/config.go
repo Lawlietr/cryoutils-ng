@@ -29,10 +29,10 @@ var CurrentVersionNumber = "2.2.2"
 var HomeDirectory, _ = os.UserHomeDir()
 
 // InstallDirectory Location the program is installed.
-var InstallDirectory = filepath.Join(HomeDirectory, ".cryo_utilities")
+var InstallDirectory = filepath.Join(HomeDirectory, ".cryoutils_ng")
 
 // LogFilePath Location of the log file
-var LogFilePath = filepath.Join(InstallDirectory, "cryoutilities.log")
+var LogFilePath = filepath.Join(InstallDirectory, "cryoutils_ng.log")
 
 //////////////////////////
 // Recommended Settings //
@@ -140,7 +140,7 @@ var SteamCompatRoot = filepath.Join(SteamDataRoot, "steamapps/compatdata")
 var SteamShaderRoot = filepath.Join(SteamDataRoot, "steamapps/shadercache")
 
 // ExternalDataRoot The location where I'll keep compatdata and shadercache on microSD cards
-var ExternalDataRoot = "cryoutilities_steam_data"
+var ExternalDataRoot = "cryoutils_ng_steam_data"
 
 // ExternalCompatRoot Generates the full path of the compatdata folder, on microSD
 var ExternalCompatRoot = filepath.Join(ExternalDataRoot, "compatdata")

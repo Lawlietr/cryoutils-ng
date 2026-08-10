@@ -44,7 +44,7 @@ func querySteamAPI() (AppResponse, error) {
 		return steamResponse, err
 	}
 
-	req.Header.Set("User-Agent", "cryoutilities")
+	req.Header.Set("User-Agent", "cryoutils-ng")
 
 	res, err := client.Do(req)
 	if err != nil {

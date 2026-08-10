@@ -1,10 +1,10 @@
 #!/bin/bash
-# Author: CryoByte33
+# Author: CryoByte33 (original) / CryoUtils NG contributors (rewrite)
 
 # This is nested for good reason, zenity won't exit the entire script if the 'x' button is pressed.
 # Nesting it forces execution only if an option is selected.
-if zenity --question --title="Disclaimer" --text="This script will uninstall CryoUtilities.\n\n<b>Disclaimer:</b> Do you want to proceed?" --width=600 2>/dev/null; then
-  if zenity --question --title="Revert" --text="Do you want to revert the tweaks made by CryoUtilities?\n\n<b>Note:</b> This does NOT move the game data to the original location on the SSD." --width=600 2>/dev/null; then
+if zenity --question --title="Disclaimer" --text="This script will uninstall CryoUtils NG.\n\n<b>Disclaimer:</b> Do you want to proceed?" --width=600 2>/dev/null; then
+  if zenity --question --title="Revert" --text="Do you want to revert the tweaks made by CryoUtils NG?\n\n<b>Note:</b> This does NOT move the game data to the original location on the SSD." --width=600 2>/dev/null; then
     # Ask for password
     hasPass=$(passwd -S "$USER" | awk -F " " '{print $2}')
     if [[ $hasPass != "P" ]]; then
@@ -19,22 +19,22 @@ if zenity --question --title="Disclaimer" --text="This script will uninstall Cry
       exit 1
     fi
     # Revert everything to stock
-    sudo bash "$HOME"/.cryo_utilities/cryo_utilities stock
+    sudo bash "$HOME"/.cryoutils_ng/cryoutils-ng stock
   fi
   # Delete install directory
-  rm -rf "$HOME/.cryo_utilities"
+  rm -rf "$HOME/.cryoutils_ng"
 
   # Remove Desktop icons
-  rm -rf "$HOME"/Desktop/CryoUtilitiesUninstall.desktop 2>/dev/null
-  rm -rf "$HOME"/Desktop/CryoUtilities.desktop 2>/dev/null
-  rm -rf "$HOME"/Desktop/UpdateCryoUtilities.desktop 2>/dev/null
+  rm -rf "$HOME"/Desktop/CryoUtilsNGUninstall.desktop 2>/dev/null
+  rm -rf "$HOME"/Desktop/CryoUtilsNG.desktop 2>/dev/null
+  rm -rf "$HOME"/Desktop/UpdateCryoUtilsNG.desktop 2>/dev/null
 
   # Remove Start Menu shortcuts
-  rm -rf "$HOME"/.local/share/applications/CryoUtilitiesUninstall.desktop 2>/dev/null
-  rm -rf "$HOME"/.local/share/applications/CryoUtilities.desktop 2>/dev/null
-  rm -rf "$HOME"/.local/share/applications/UpdateCryoUtilities.desktop 2>/dev/null
+  rm -rf "$HOME"/.local/share/applications/CryoUtilsNGUninstall.desktop 2>/dev/null
+  rm -rf "$HOME"/.local/share/applications/CryoUtilsNG.desktop 2>/dev/null
+  rm -rf "$HOME"/.local/share/applications/UpdateCryoUtilsNG.desktop 2>/dev/null
   update-desktop-database ~/.local/share/applications
 
   # Remove icon from KDE
-  xdg-icon-resource uninstall cryo-utilities 2>/dev/null
+  xdg-icon-resource uninstall cryoutils-ng 2>/dev/null
 fi

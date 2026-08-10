@@ -18,7 +18,7 @@ package main
 
 import (
 	"context"
-	"cryoutilities/internal"
+	"cryoutils-ng/internal"
 	"errors"
 	"log"
 	"os"
@@ -237,8 +237,8 @@ func main() {
 
 	// Basic program metadata
 	r := acmd.RunnerOf(cmds, acmd.Config{
-		AppName:         "cryoutilities",
-		AppDescription:  "CryoByte33's Steam Deck utility script.",
+		AppName:         "cryoutils-ng",
+		AppDescription:  "CryoUtils NG — Steam Deck performance utility (rewrite of CryoUtilities by CryoByte33).",
 		PostDescription: "NOTE: You NEED to run this with sudo if not using GUI mode.",
 		Version:         internal.CurrentVersionNumber,
 	})

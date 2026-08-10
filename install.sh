@@ -1,12 +1,12 @@
 #!/bin/bash
-# Author: CryoByte33
+# Author: CryoByte33 (original) / CryoUtils NG contributors (rewrite)
 
 # Create a hidden directory for the script, if not present
-mkdir -p "$HOME/.cryo_utilities" &>/dev/null
-cd "$HOME/.cryo_utilities" || exit 1
+mkdir -p "$HOME/.cryoutils_ng" &>/dev/null
+cd "$HOME/.cryoutils_ng" || exit 1
 
 # Download checksum to compare with local binary, if present
-wget https://github.com/CryoByte33/steam-deck-utilities/releases/download/latest/cu.md5 -O "$HOME/.cryo_utilities/cu.md5" 2>&1
+wget https://github.com/Lawlietr/cryoutils-ng/releases/download/latest/cu.md5 -O "$HOME/.cryoutils_ng/cu.md5" 2>&1
 sleep 1
 if md5sum -c --quiet cu.md5; then
   zenity --info --text="No update necessary!" --width=300
@@ -22,12 +22,12 @@ rm -rf ~/Desktop/SwapResizerUninstall.desktop &>/dev/null
 rm -rf ~/Desktop/SwapResizer.desktop &>/dev/null
 
 # Remove old binary
-rm -f "$HOME/.cryo_utilities/cryo_utilities" &>/dev/null
+rm -f "$HOME/.cryoutils_ng/cryoutils-ng" &>/dev/null
 
 # Attempt to download the binary 3 times.
 for i in {1..3}; do
   # Download binary
-  wget https://github.com/CryoByte33/steam-deck-utilities/releases/download/latest/cryo_utilities -O "$HOME/.cryo_utilities/cryo_utilities" 2>&1 | sed -u 's/.* \([0-9]\+%\)\ \+\([0-9.]\+.\) \(.*\)/\1\n# Downloading at \2\/s, ETA \3/' | zenity --progress --title="Downloading CU Binary, attempt $i of 3..." --auto-close --width=500
+  wget https://github.com/Lawlietr/cryoutils-ng/releases/download/latest/cryoutils-ng -O "$HOME/.cryoutils_ng/cryoutils-ng" 2>&1 | sed -u 's/.* \([0-9]\+%\)\ \+\([0-9.]\+.\) \(.*\)/\1\n# Downloading at \2\/s, ETA \3/' | zenity --progress --title="Downloading CU2 Binary, attempt $i of 3..." --auto-close --width=500
 
   # Start a loop testing if zenity is running, and if not kill wget (allows for cancel to work)
   RUNNING=0
@@ -46,99 +46,99 @@ for i in {1..3}; do
   fi
 
   if [ "$i" -ge "3" ]; then
-    zenity --error --text="Install/upgrade of CryoUtilities has failed!\n\nBinary couldn't be downloaded correctly, this may be a network or GitHub issue." --width=500
+    zenity --error --text="Install/upgrade of CryoUtils NG has failed!\n\nBinary couldn't be downloaded correctly, this may be a network or GitHub issue." --width=500
     exit 1
   fi
 done
 
-chmod +x "$HOME/.cryo_utilities/cryo_utilities"
+chmod +x "$HOME/.cryoutils_ng/cryoutils-ng"
 rm -f cu.md5 &>/dev/null
 
 # Remove old launcher
-rm -f "$HOME/.cryo_utilities/launcher.sh" &>/dev/null
+rm -f "$HOME/.cryoutils_ng/launcher.sh" &>/dev/null
 
 # Install launcher script
-wget https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/launcher.sh -O "$HOME/.cryo_utilities/launcher.sh"
-chmod +x "$HOME/.cryo_utilities/launcher.sh"
+wget https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/launcher.sh -O "$HOME/.cryoutils_ng/launcher.sh"
+chmod +x "$HOME/.cryoutils_ng/launcher.sh"
 
 # Remove old icon
-rm -f "$HOME/.cryo_utilities/cryo-utilities.png" &>/dev/null
+rm -f "$HOME/.cryoutils_ng/cryoutils-ng.png" &>/dev/null
 
 # Install Icon
-wget https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/cmd/cryoutilities/Icon.png -O "$HOME/.cryo_utilities/cryo-utilities.png"
-xdg-icon-resource install cryo-utilities.png --size 64
+wget https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/cmd/cryoutilities/Icon.png -O "$HOME/.cryoutils_ng/cryoutils-ng.png"
+xdg-icon-resource install cryoutils-ng.png --size 64
 
 # Create Desktop icons
-rm -rf "$HOME"/Desktop/CryoUtilitiesUninstall.desktop 2>/dev/null
+rm -rf "$HOME"/Desktop/CryoUtilsNGUninstall.desktop 2>/dev/null
 echo '#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=Uninstall CryoUtilities
-Exec=curl https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/uninstall.sh | bash -s --
+Name=Uninstall CryoUtils NG
+Exec=curl https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/uninstall.sh | bash -s --
 Icon=delete
 Terminal=false
 Type=Application
-StartupNotify=false' >"$HOME"/Desktop/CryoUtilitiesUninstall.desktop
-chmod +x "$HOME"/Desktop/CryoUtilitiesUninstall.desktop
+StartupNotify=false' >"$HOME"/Desktop/CryoUtilsNGUninstall.desktop
+chmod +x "$HOME"/Desktop/CryoUtilsNGUninstall.desktop
 
-rm -rf "$HOME"/Desktop/CryoUtilities.desktop 2>/dev/null
+rm -rf "$HOME"/Desktop/CryoUtilsNG.desktop 2>/dev/null
 echo "#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=CryoUtilities
-Exec=bash $HOME/.cryo_utilities/launcher.sh
-Icon=cryo-utilities
+Name=CryoUtils NG
+Exec=bash $HOME/.cryoutils_ng/launcher.sh
+Icon=cryoutils-ng
 Terminal=false
 Type=Application
-StartupNotify=false" >"$HOME"/Desktop/CryoUtilities.desktop
-chmod +x "$HOME"/Desktop/CryoUtilities.desktop
+StartupNotify=false" >"$HOME"/Desktop/CryoUtilsNG.desktop
+chmod +x "$HOME"/Desktop/CryoUtilsNG.desktop
 
-rm -rf "$HOME"/Desktop/UpdateCryoUtilities.desktop 2>/dev/null
+rm -rf "$HOME"/Desktop/UpdateCryoUtilsNG.desktop 2>/dev/null
 echo "#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=Update CryoUtilities
-Exec=curl https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/install.sh | bash -s --
+Name=Update CryoUtils NG
+Exec=curl https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/install.sh | bash -s --
 Icon=bittorrent-sync
 Terminal=false
 Type=Application
-StartupNotify=false" >"$HOME"/Desktop/UpdateCryoUtilities.desktop
-chmod +x "$HOME"/Desktop/UpdateCryoUtilities.desktop
+StartupNotify=false" >"$HOME"/Desktop/UpdateCryoUtilsNG.desktop
+chmod +x "$HOME"/Desktop/UpdateCryoUtilsNG.desktop
 
 # Create Start Menu Icons
-rm -rf "$HOME"/.local/share/applications/CryoUtilitiesUninstall.desktop 2>/dev/null
-echo "#!/usr/bin/env xdg-open
+rm -rf "$HOME"/.local/share/applications/CryoUtilsNGUninstall.desktop 2>/dev/null
+echo '#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=CryoUtilities - Uninstall
-Exec=curl https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/uninstall.sh | bash -s --
+Name=CryoUtils NG - Uninstall
+Exec=curl https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/uninstall.sh | bash -s --
 Icon=delete
 Terminal=false
 Type=Application
 Categories=Utility
-StartupNotify=false" >"$HOME"/.local/share/applications/CryoUtilitiesUninstall.desktop
-chmod +x "$HOME"/.local/share/applications/CryoUtilitiesUninstall.desktop
+StartupNotify=false' >"$HOME"/.local/share/applications/CryoUtilsNGUninstall.desktop
+chmod +x "$HOME"/.local/share/applications/CryoUtilsNGUninstall.desktop
 
-rm -rf "$HOME"/.local/share/applications/CryoUtilities.desktop 2>/dev/null
-echo "#!/usr/bin/env xdg-open
+rm -rf "$HOME"/.local/share/applications/CryoUtilsNG.desktop 2>/dev/null
+echo '#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=CryoUtilities
-Exec=bash $HOME/.cryo_utilities/launcher.sh
-Icon=cryo-utilities
+Name=CryoUtils NG
+Exec=bash $HOME/.cryoutils_ng/launcher.sh
+Icon=cryoutils-ng
 Terminal=false
 Type=Application
 Categories=Utility
-StartupNotify=false" >"$HOME"/.local/share/applications/CryoUtilities.desktop
-chmod +x "$HOME"/.local/share/applications/CryoUtilities.desktop
+StartupNotify=false' >"$HOME"/.local/share/applications/CryoUtilsNG.desktop
+chmod +x "$HOME"/.local/share/applications/CryoUtilsNG.desktop
 
-rm -rf "$HOME"/.local/share/applications/UpdateCryoUtilities.desktop 2>/dev/null
-echo "#!/usr/bin/env xdg-open
+rm -rf "$HOME"/.local/share/applications/UpdateCryoUtilsNG.desktop 2>/dev/null
+echo '#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=CryoUtilities - Update
-Exec=curl https://raw.githubusercontent.com/CryoByte33/steam-deck-utilities/main/install.sh | bash -s --
+Name=CryoUtils NG - Update
+Exec=curl https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/install.sh | bash -s --
 Icon=bittorrent-sync
 Terminal=false
 Type=Application
 Categories=Utility
-StartupNotify=false" >"$HOME"/.local/share/applications/UpdateCryoUtilities.desktop
-chmod +x "$HOME"/.local/share/applications/UpdateCryoUtilities.desktop
+StartupNotify=false' >"$HOME"/.local/share/applications/UpdateCryoUtilsNG.desktop
+chmod +x "$HOME"/.local/share/applications/UpdateCryoUtilsNG.desktop
 
 update-desktop-database ~/.local/share/applications
 
-zenity --info --text="Install/upgrade of CryoUtilities has been completed!" --width=300
+zenity --info --text="Install/upgrade of CryoUtils NG has been completed!" --width=300

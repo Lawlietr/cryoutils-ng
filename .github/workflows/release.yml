@@ -20,22 +20,22 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
-          go-version: '^1.21.x'
+          go-version: '^1.26.x'
           check-latest: true
           cache: true
 
       - name: Install Go Packages
-        run: |
+        run:
           go mod tidy
 
       - name: Build
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryo_utilities ./cmd/cryoutilities
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryoutils-ng ./cmd/cryoutilities
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: ${{env.release_name}}
-          path: cryo_utilities
+          path: cryoutils-ng
 
   main-release:
     needs: build
@@ -55,7 +55,7 @@ jobs:
         run: sudo apt-get install -y hub
 
       - name: Generate Checksum
-        run: md5sum cryo_utilities > cu.md5
+        run: md5sum cryoutils-ng > cu.md5
 
       - name: Delete Previous Latest Release
         uses: dev-drprasad/delete-tag-and-release@v0.2.1
@@ -68,13 +68,13 @@ jobs:
 
       - name: Create Unique Release
         shell: bash
-        run: hub release create ${{ env.release_name }} -m ${{ env.release_name }} -a cryo_utilities -a cu.md5
+        run: hub release create ${{ env.release_name }} -m ${{ env.release_name }} -a cryoutils-ng -a cu.md5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Latest Release
         shell: bash
-        run: hub release create latest -m latest -a cryo_utilities -a cu.md5
+        run: hub release create latest -m latest -a cryoutils-ng -a cu.md5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -106,6 +106,6 @@ jobs:
 
       - name: Create Develop Release
         shell: bash
-        run: hub release create develop -m develop -a cryo_utilities
+        run: hub release create develop -m develop -a cryoutils-ng
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

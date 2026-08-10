@@ -28,7 +28,7 @@ import (
 
 // Home tab for "recommended" and "default" buttons
 func (app *Config) homeTab() *fyne.Container {
-	welcomeText := canvas.NewText("Welcome to CryoUtilities!", White)
+	welcomeText := canvas.NewText("Welcome to CryoUtils NG!", White)
 	welcomeText.TextSize = HeaderTextSize
 	welcomeText.TextStyle.Bold = true
 
@@ -98,7 +98,7 @@ func (app *Config) homeTab() *fyne.Container {
 	})
 
 	recommendedSettings := widget.NewCard("Recommended Settings", "Set all settings to "+
-		"CryoByte33's recommendations.", recommendedButton)
+		"CryoUtils NG's recommendations.", recommendedButton)
 	stockSettings := widget.NewCard("Stock Settings", "Reset all settings to Valve defaults, excludes "+
 		"'Game Data' tab/locations.", stockButton)
 
