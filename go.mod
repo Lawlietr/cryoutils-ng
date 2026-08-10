@@ -3,6 +3,7 @@ module cryoutils-ng
 go 1.26
 
 require (
+	cryoutils-ng/core v0.0.0
 	fyne.io/fyne/v2 v2.3.1
 	github.com/andygrunwald/vdf v1.1.0
 	github.com/cristalhq/acmd v0.12.0
