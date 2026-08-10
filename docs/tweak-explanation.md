@@ -12,9 +12,9 @@ whereby a page of memory is copied to the preconfigured space on the hard disk, 
 page of memory. The combined sizes of the physical memory and the swap space is the amount of virtual memory available.
 ```
 
-### Why Did I Change It?
+### Why It Was Changed
 
-By increasing the swap size, we can do a few things:
+By increasing the swap size, the following benefits are achieved:
 
 * Significantly reduce memory pressure
     * This allows more to be cached while simultaneously allowing for VRAM to inflate a bit more
@@ -43,17 +43,16 @@ Also from the [Arch Wiki](https://wiki.archlinux.org/title/swap#Swappiness):
 > swapping, a high value causes the kernel to try to use swap space, and a value of 100 means IO cost is assumed to be
 > equal. Using a low value on sufficient memory is known to improve responsiveness on many systems.
 
-### Why Did I Change It?
+### Why It Was Changed
 
-By default, the Deck has a very high swappiness of 100, which can lead to data going to swap when there's a lot of
-physical memory left.
+The default swappiness on the Deck is 100, which can cause data to be swapped even when significant physical memory remains.
 
 This can can be bad for two reasons:
 
 * Excessive writes can shorten the life of your drive
 * Swap is much slower than memory, and using it slows things down
 
-So, by reducing swap to a lower value, or my recommended value of 1, we can:
+By reducing swappiness to a lower value (recommended: 1):
 
 1. Ensure that swap is only used at the very last second, when it's really needed
 2. Preserve drive health
@@ -76,10 +75,9 @@ From an [excellent writeup by Emin here](https://xeome.github.io/notes/Transpare
 > which reduces the potential amount of time required to access a specific memory address by caching the most recently
 > used memory.
 
-### Why Did I Change It?
+### Why It Was Changed
 
-As mentioned in the explanation, pages are expensive to allocate. Hugepages are significantly easier to allocate and
-look up, and they reduce a lot of stutter when dealing with large amounts of memory.
+Pages are expensive to allocate. Hugepages are significantly easier to allocate and look up, and they reduce stutter when dealing with large amounts of memory.
 
 ### How It's Done
 
@@ -98,9 +96,9 @@ As per [the kernel docs](https://www.kernel.org/doc/html/next/admin-guide/mm/tra
 
 Essentially, it allows those things to end up in hugepages.
 
-### Why Did I Change It?
+### Why It Was Changed
 
-For the same reasons as enabling hugepages, this can reduce some latency in memory management.
+For the same reasons as enabling hugepages — this can reduce latency in memory management.
 
 ### How It's Done
 
@@ -114,9 +112,9 @@ echo advise | sudo tee /sys/kernel/mm/transparent_hugepage/shmem_enabled
 
 This feature proactively defragments memory when Linux detects "downtime".
 
-### Why Did I Change It?
+### Why It Was Changed
 
-Even the  [kernel documentation](https://docs.kernel.org/admin-guide/sysctl/vm.html#compaction-proactiveness) agrees
+The [kernel documentation](https://docs.kernel.org/admin-guide/sysctl/vm.html#compaction-proactiveness) confirms
 that this feature has a system-wide impact on performance:
 
 > Note that compaction has a non-trivial system-wide impact as pages belonging to different processes are moved around,
@@ -137,9 +135,9 @@ echo 0 | sudo tee /proc/sys/vm/compaction_proactiveness
 
 It's the same thing as proactive compaction, but for hugepages.
 
-### Why Did I Change It?
+### Why It Was Changed
 
-See the reasons for disabling proactive compaction.
+See the reasons for disabling proactive compaction above.
 
 ### How It's Done
 
@@ -156,11 +154,10 @@ that process access to a page.
 See [the commit](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=5ef64cc8987a9211d3f3667331ba3411a94ddc79)
 for details.
 
-### Why Did I Change It?
+### Why It Was Changed
 
-Unfortunately, [it can have negative side effects](https://www.phoronix.com/review/linux-59-fairness), especially in
-gaming. Having processes wait repeatedly can cause games to have many issues with stutter, and causes some to sleep
-when they shouldn't.
+[it can have negative side effects](https://www.phoronix.com/review/linux-59-fairness), especially in gaming.
+Processes waiting repeatedly can cause stutter and unexpected sleeping in games.
 
 ### How It's Done
 
@@ -170,8 +167,8 @@ echo 1 | sudo tee /proc/sys/vm/page_lock_unfairness
 
 ## Sources
 
-Some wording and general sanity checks were provided by [Emin](https://github.com/xeome), who is likely to be a big
-contributor going forward, given his interest in low-level Linux optimizations.
+Content was reviewed and refined with contributions from [Emin](https://github.com/xeome), who has a strong interest
+in low-level Linux optimizations.
 
-The rest is provided by [the Arch Wiki](https://wiki.archlinux.org), [Phoronix](https://www.phoronix.com),
-[kernel docs](https://docs.kernel.org) and various bits of knowledge that I've gathered over the years.
+Additional sources include [the Arch Wiki](https://wiki.archlinux.org), [Phoronix](https://www.phoronix.com),
+and [kernel documentation](https://docs.kernel.org).
