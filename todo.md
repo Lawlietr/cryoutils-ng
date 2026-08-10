@@ -84,7 +84,7 @@
 - [ ] Final acceptance on real Steam Deck (coexist with original CryoUtilities, no clobber)
 
 ## Phase 8 — Documentation Rewrite (README)
-- [ ] 重寫 `README.md`：
+- [x] 重寫 `README.md`：
   - **移除**：CryoByte33 的個人資訊（YouTube 頻道、Patreon、Discord 連結、個人網站）
   - **保留**：對原始項目 CryoByte33/CryoUtilities 的致敬與說明（衍生作品、GPLv3 授權）
   - **重寫**：根據實際專案狀態（rewrite、新架構、新命名空間）更新所有描述

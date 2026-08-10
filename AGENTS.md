@@ -8,7 +8,7 @@
 
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
-- **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend).
+- **`cmd/cryoutils-ng`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend).
 - **`cmd/desktop`**: localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build → single-file install.
 - **`web/`**: React + Vite + TypeScript **single-page** UI (no tabs). Vertical single column; all settings + statuses on one view. Plain CSS, framework-agnostic components (reusable by Decky plugin later).
 - **`internal/`**: legacy Fyne UI — to be deleted at end of Phase 1.
@@ -48,7 +48,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Build web UI**: `cd web && npm ci && npm run build`
 - **Test**: `go test ./core/...` · `go vet ./...`
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
-- **CLI (target)**: `sudo ~/.<NEW_NAME>/<binary> <command> [parameter]`
+- **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
 - **Permissions**: tweaks need sudo; `core/sudo.go` handles password → `sudo -S echo` timestamp cache (same mechanism as original `renewSudoAuth`).
 
 ## Dependencies (modernized)
@@ -76,7 +76,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 2**: CLI rework + `status` command
 - **Phase 3**: desktop web server (REST + SSE + token)
 - **Phase 4**: single-page React UI
-- **Phase 5**: packaging under new name
+- **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh)
 - **Phase 6**: verification
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
