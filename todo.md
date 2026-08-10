@@ -67,16 +67,18 @@
 - [x] `docs/manual-install.md` — updated for two binaries
 
 ## Phase 5.5: Desktop UI — 無邊框視窗模式 (方案 D) ⏳
+**使用環境**:UI 主要在 Steam Deck **Desktop Mode**(Gaming Mode 非主要)。
 - [ ] `cmd/desktop/browser.go` — `findAppBrowsers()`(lookpath 候選:google-chrome / chromium / microsoft-edge / brave-browser 等)
 - [ ] Flatpak 偵測 fallback(`flatpak list --app` 匹配 Brave/Chromium/Chrome/Edge,用 `flatpak run`)
 - [ ] `openInAppWindow(url)` — `--new-window --app=<url>` 開無邊框獨立視窗
+- [ ] `steam://openurl` fallback(Steam 在 Deck 保證存在;原廠無瀏覽器時用其內建 CEF 瀏覽器)
 - [ ] `openInBrowser(url)` — `xdg-open` fallback
 - [ ] Flags:`-no-browser`(只印 URL)、`-browser <path>`(強制指定)
 - [ ] `main.go:75-79` 接線:app-window 成功才開,否則 fallback;log 記錄啟用方式
 - [ ] `browser_test.go` — 偵測順序 / fallback / override 單元測試(`t.Setenv("PATH", ...)`)
 - [ ] 驗證:`CGO_ENABLED=0 go vet ./cmd/desktop/...`、build、dev VM `-no-browser` 冒煙測試
-- [ ] README 更新(開窗方式 + flags)
-- [ ] 真實 Deck 確認 `--app=` 與 flatpak 參數傳遞(Phase 6)
+- [ ] README 更新(開窗方式 + flags + Desktop Mode 使用說明)
+- [ ] 真實 Deck 確認 `--app=`、flatpak、`steam://openurl` 參數傳遞與視窗行為(Phase 6)
 
 **範圍外**:單實例鎖、Firefox 支援(走 xdg-open fallback)
 

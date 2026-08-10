@@ -22,8 +22,9 @@
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
 
 ## Desktop UI Launch (Decision — 方案 D)
+- **使用環境**:UI 主要在 Steam Deck **Desktop Mode** 使用(Gaming Mode 非主要;但 fallback 鏈對兩種 mode 都適用)。
 - **決策**:維持 web server + 瀏覽器架構,用 Chromium 系瀏覽器 `--new-window --app=<URL>` 開**無邊框獨立視窗**(外觀等同原生 app),不開普通分頁。
-- **Fallback 鏈**:lookpath 候選(google-chrome / chromium / microsoft-edge / brave-browser 等)→ flatpak(`flatpak list --app` 匹配 Brave/Chromium/Chrome/Edge,用 `flatpak run`)→ `xdg-open`。
+- **Fallback 鏈**:lookpath 候選(google-chrome / chromium / microsoft-edge / brave-browser 等)→ flatpak(`flatpak list --app` 匹配 Brave/Chromium/Chrome/Edge,用 `flatpak run`)→ `steam://openurl/<url>`(Steam 在 Deck 上保證存在,用其內建 CEF 瀏覽器;原廠無瀏覽器時的關鍵 fallback)→ `xdg-open`。
 - **Flags**:`-no-browser`(只印 URL,不開視窗)、`-browser <path>`(強制指定瀏覽器)。
 - **不採用(已評估)**:
   - WebView 內嵌(Wails/webview/webkit2gtk):Stock SteamOS 無 webkit2gtk(Valve issue #1851)且 rootfs 唯讀,依賴安裝不可行;需 CGO。
