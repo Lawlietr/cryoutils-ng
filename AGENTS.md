@@ -21,7 +21,7 @@
 - Long tasks (swap resize) show a top-of-page progress bar via SSE, never lost on scroll.
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
 
-## Naming (BLOCKING — PENDING USER INPUT)
+## Naming (confirmed)
 Project name confirmed: **CryoUtils NG**.
 - Go module: `cryoutils-ng`
 - Binary name: `cryoutils-ng`
@@ -74,7 +74,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 0**: dependency modernization (Go 1.26.5, fresh `core/go.mod`, drop Fyne) — see `todo.md`
 - **Phase 1**: core extraction ✅
 - **Phase 2**: CLI rework + `status` command ✅
-- **Phase 3**: desktop web server (REST + SSE + token)
+- **Phase 3**: desktop web server (REST + SSE + token) ✅
 - **Phase 4**: single-page React UI
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh)
 - **Phase 6**: verification
