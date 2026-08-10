@@ -17,7 +17,14 @@
 // Package main embeds the web build into the binary.
 package main
 
-import "embed"
+import (
+	"embed"
+	"io/fs"
+)
 
 //go:embed web/dist
 var webFS embed.FS
+
+// WebFS is the embedded web build, rooted at web/dist so that
+// http.FileServer serves files at /, /assets/, /icon.png, etc.
+var WebFS, _ = fs.Sub(webFS, "web/dist")

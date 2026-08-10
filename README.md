@@ -26,11 +26,11 @@ A Steam Deck utility to manage swap files, swappiness, and memory parameters —
 
 ## Install
 
-### Simple
+### Simple (Recommended)
 
 Download the [InstallCryoUtilsNG.desktop](https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/InstallCryoUtilities.desktop) file to your desktop (right click and save file) on your Steam Deck, remove the `.download` from the end of the file name, then double-click it.
 
-This will install the program, create desktop icons, and create menu entries.
+This will install both the CLI and desktop server binaries, create desktop icons, and create menu entries.
 
 ### Manual
 
@@ -40,13 +40,13 @@ See [manual-install.md](docs/manual-install.md).
 
 **NOTE**: This **REQUIRES** a password set on the Steam Deck. That can be done with the `passwd` command.
 
-### GUI
+### GUI (Desktop Mode)
 
-After installation, just run the "CryoUtils NG" icon on the desktop or the application menu under "Utilities".
+After installation, double-click the "CryoUtils NG" icon on the desktop or find it in the application menu under "Utilities". This launches the desktop web server and opens your browser automatically.
+
+The web UI runs on `127.0.0.1` with a per-launch random token. No network exposure — it only listens on localhost.
 
 ### CLI
-
-The latest version has a full CLI handler, which can be used to perform all tweaks:
 
 ```
 sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]
@@ -68,6 +68,27 @@ Check current settings via CLI:
 sudo ~/.cryoutils_ng/cryoutils-ng status
 ```
 
+### Building the Desktop Server from Source
+
+The desktop server binary is not distributed via GitHub Releases. To build it:
+
+```bash
+# Build web UI first
+cd web && npm ci && npm run build
+
+# Build desktop server (static binary, no CGO)
+cd ..
+CGO_ENABLED=0 go build -o cryoutils-ng-desktop ./cmd/desktop
+```
+
+Then run it directly:
+
+```bash
+./cryoutils-ng-desktop
+```
+
+It will print a URL like `http://127.0.0.1:PORT/?token=TOKEN` — open that in your browser.
+
 ## Upgrade
 
 Double-click the "Update CryoUtils NG" icon on the desktop, you will get a dialog box when the update is complete.
@@ -80,7 +101,7 @@ Double-click the "Uninstall CryoUtils NG" icon on the desktop, you will be asked
 
 To revert to the Steam Deck defaults, do one of the following:
 
-* Boot CryoUtils NG and click "Stock" on the homepage.
+* Launch CryoUtils NG (desktop mode) and click "Stock" on the homepage.
 * Uninstall CryoUtils NG, you'll be asked if you want to revert to stock settings. Choose yes.
 
 After choosing these options, the Deck will be identical to an unmodified version.
@@ -109,8 +130,13 @@ See [the tweak explanation page](docs/tweak-explanation.md).
 ### CryoUtils NG doesn't appear after double-clicking the icon on the desktop
 
 * Make sure that you're using SteamOS 3.4 or later
-* Verify that `/home/deck/.cryoutils_ng/cryoutils-ng` and `/home/deck/.cryoutils_ng/launcher.sh` exist
+* Verify that `/home/deck/.cryoutils_ng/cryoutils-ng` and `/home/deck/.cryoutils_ng/cryoutils-ng-desktop` exist
     * `/home/deck/.cryoutils_ng` is a hidden directory, so ensure that you can view hidden files
+
+### The desktop server won't start
+
+* Make sure both `cryoutils-ng` and `cryoutils-ng-desktop` exist in `~/.cryoutils_ng/`
+* Check the log at `~/.cryoutils_ng/cryoutils_ng.log`
 
 ## Attribution
 

@@ -23,17 +23,54 @@ jobs:
           check-latest: true
           cache: true
 
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
       - name: Install Go Packages
         run: go mod tidy
 
-      - name: Build
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryoutils-ng ./cmd/cryoutils-ng
+      - name: Build Web UI
+        run: cd web && npm ci && npm run build
 
-      - name: Upload Artifact
+      - name: Copy Web Build into Desktop Embed
+        run: |
+          rm -rf cmd/desktop/web/dist
+          cp -r web/dist cmd/desktop/web/dist
+
+      - name: Build CLI
+        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o cryoutils-ng ./cmd/cryoutilities
+
+      - name: Build Desktop Server
+        run: CGO_ENABLED=0 go build -ldflags="-s -w" -o cryoutils-ng-desktop ./cmd/desktop
+
+      - name: Generate Checksums
+        run: |
+          md5sum cryoutils-ng > cryoutils-ng.md5
+          md5sum cryoutils-ng-desktop > cryoutils-ng-desktop.md5
+
+      - name: Upload CLI Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.release_name }}
+          name: ${{ env.release_name }}-cli
           path: cryoutils-ng
+
+      - name: Upload Desktop Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.release_name }}-desktop
+          path: cryoutils-ng-desktop
+
+      - name: Upload Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.release_name }}-checksums
+          path: |
+            cryoutils-ng.md5
+            cryoutils-ng-desktop.md5
 
   main-release:
     needs: build
@@ -43,38 +80,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Artifact
+      - name: Download CLI Artifact
         uses: actions/download-artifact@v4
-        id: download
         with:
-          name: ${{ env.release_name }}
+          name: ${{ env.release_name }}-cli
 
-      - name: Install Hub Package
-        run: sudo apt-get install -y hub
-
-      - name: Generate Checksum
-        run: md5sum cryoutils-ng > cu.md5
-
-      - name: Delete Previous Latest Release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
+      - name: Download Desktop Artifact
+        uses: actions/download-artifact@v4
         with:
-          tag_name: latest
-          delete_release: true
-          repo: ${{ github.repository }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ env.release_name }}-desktop
 
-      - name: Create Unique Release
-        shell: bash
-        run: hub release create ${{ env.release_name }} -m ${{ env.release_name }} -a cryoutils-ng -a cu.md5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.release_name }}-checksums
+          path: .
 
-      - name: Create Latest Release
-        shell: bash
-        run: hub release create latest -m latest -a cryoutils-ng -a cu.md5
+      - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ env.release_name }} \
+            --title ${{ env.release_name }} \
+            --notes "Build ${{ env.release_name }}" \
+            cryoutils-ng \
+            cryoutils-ng.md5 \
+            cryoutils-ng-desktop \
+            cryoutils-ng-desktop.md5
+
+      - name: Update Latest Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes || true
+          gh release create latest \
+            --title latest \
+            --notes "Latest build" \
+            cryoutils-ng \
+            cryoutils-ng.md5 \
+            cryoutils-ng-desktop \
+            cryoutils-ng-desktop.md5
 
   dev-release:
     needs: build
@@ -84,26 +129,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Artifact
+      - name: Download CLI Artifact
         uses: actions/download-artifact@v4
-        id: download
         with:
-          name: ${{ env.release_name }}
+          name: ${{ env.release_name }}-cli
 
-      - name: Install Hub Package
-        run: sudo apt-get install -y hub
-
-      - name: Delete Previous Develop Release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
+      - name: Download Desktop Artifact
+        uses: actions/download-artifact@v4
         with:
-          tag_name: develop
-          delete_release: true
-          repo: ${{ github.repository }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ env.release_name }}-desktop
+
+      - name: Download Checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.release_name }}-checksums
+          path: .
 
       - name: Create Develop Release
-        shell: bash
-        run: hub release create develop -m develop -a cryoutils-ng
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete develop --yes || true
+          gh release create develop \
+            --title develop \
+            --notes "Develop build ${{ env.release_name }}" \
+            cryoutils-ng \
+            cryoutils-ng.md5 \
+            cryoutils-ng-desktop \
+            cryoutils-ng-desktop.md5

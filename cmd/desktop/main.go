@@ -63,7 +63,7 @@ func main() {
 	setupAPIRoutes(mux, e, token)
 
 	// Serve embedded web build (Phase 4)
-	mux.Handle("/", http.FileServer(http.FS(webFS)))
+	mux.Handle("/", http.FileServer(http.FS(WebFS)))
 
 	// Start server
 	addr := net.JoinHostPort(bindAddr, strconv.Itoa(port))

@@ -2,8 +2,10 @@
 
 ## Prerequisites
 
-1. Install Go 1.26+ on the Steam Deck (or cross-compile from another machine)
-2. Download the binary from the releases page
+1. Download both binaries from the [releases page](https://github.com/Lawlietr/cryoutils-ng/releases/tag/latest):
+   - `cryoutils-ng` (CLI)
+   - `cryoutils-ng-desktop` (desktop web server / GUI)
+2. Download `icon.png` from the repository root
 
 ## Steps
 
@@ -12,20 +14,20 @@
    mkdir ~/.cryoutils_ng
    ```
 
-2. Go to [the releases page](https://github.com/Lawlietr/cryoutils-ng/releases/tag/latest) and download `cryoutils-ng`.
-
-3. Go to [launcher.sh](https://github.com/Lawlietr/cryoutils-ng/blob/main/launcher.sh), right click on "Raw" and "Save Link As" to the downloads folder.
-
-4. Go to [icon.png](https://github.com/Lawlietr/cryoutils-ng/blob/main/icon.png), right click on "Raw" and "Save Link As" to the downloads folder naming it `cryoutils-ng.png`.
-
-5. Move all 3 downloaded files to `/home/deck/.cryoutils_ng`:
+2. Move both binaries and the icon into the install directory:
    ```bash
    cd ~/.cryoutils_ng
-   chmod +x cryoutils-ng
-   xdg-icon-resource install cryoutils-ng.png --size 64
+   chmod +x cryoutils-ng cryoutils-ng-desktop
+   xdg-icon-resource install icon.png --size 64
    ```
 
-6. Create Desktop icons:
+3. Download `launcher.sh` from the repository:
+   ```bash
+   curl -L https://raw.githubusercontent.com/Lawlietr/cryoutils-ng/main/launcher.sh -o launcher.sh
+   chmod +x launcher.sh
+   ```
+
+4. Create Desktop icons:
    ```bash
    rm -rf "$HOME"/Desktop/CryoUtilsNGUninstall.desktop 2>/dev/null
    echo '#!/usr/bin/env xdg-open
@@ -61,7 +63,7 @@
    chmod +x "$HOME"/Desktop/UpdateCryoUtilsNG.desktop
    ```
 
-7. Create Start Menu icons:
+5. Create Start Menu icons:
    ```bash
    rm -rf "$HOME"/.local/share/applications/CryoUtilsNGUninstall.desktop 2>/dev/null
    echo '#!/usr/bin/env xdg-open
@@ -100,9 +102,28 @@
    chmod +x "$HOME"/.local/share/applications/UpdateCryoUtilsNG.desktop
    ```
 
-8. Update desktop database:
+6. Update desktop database:
    ```bash
    update-desktop-database ~/.local/share/applications
    ```
+
+## Desktop Server (GUI)
+
+Double-clicking the "CryoUtils NG" icon launches `cryoutils-ng-desktop`, which starts a localhost web server and opens your browser automatically. The UI is served at `http://127.0.0.1:<PORT>/?token=<TOKEN>`.
+
+If you prefer to run the desktop server manually:
+
+```bash
+~/.cryoutils_ng/cryoutils-ng-desktop
+```
+
+## CLI Usage
+
+```bash
+sudo ~/.cryoutils_ng/cryoutils-ng status
+sudo ~/.cryoutils_ng/cryoutils-ng recommended
+sudo ~/.cryoutils_ng/cryoutils-ng stock
+sudo ~/.cryoutils_ng/cryoutils-ng help
+```
 
 Now, you should be all set to use CryoUtils NG as normal!

@@ -8,10 +8,10 @@
 
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
-- **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`.
-- **`cmd/desktop`**: localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build → single-file install.
+- **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`. Published via GitHub Releases.
+- **`cmd/desktop`**: localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build. Binary name: `cryoutils-ng-desktop`. Not published via Releases — users build from source per README instructions.
 - **`web/`**: React + Vite + TypeScript **single-page** UI (no tabs). Vertical single column; all settings + statuses on one view. Plain CSS, framework-agnostic components (reusable by Decky plugin later).
-- **`internal/`**: legacy Fyne UI — retained for now, to be deleted at end of Phase 4 (full UI rewrite).
+- **`internal/`**: legacy Fyne UI — **ready for deletion** (Phase 4 complete); retained only to avoid breaking root module `go build ./...` until packaging is done.
 
 ## UI Design Decisions (locked)
 - **Single page, vertical single column** — no tabs (original's tabs deemed redundant).
@@ -44,9 +44,11 @@ Project name confirmed: **CryoUtils NG**.
 - 佈建完成後回報最終 `df -h` 結果。
 
 ## Key Commands
-- **Build core + CLI**: `go build ./...` (from repo root)
+- **Build CLI**: `cd cmd/cryoutilities && CGO_ENABLED=0 go build -o cryoutils-ng .`
+- **Build desktop server**: `cd web && npm ci && npm run build` then `cp -r web/dist cmd/desktop/web/dist` then `cd ../cmd/desktop && CGO_ENABLED=0 go build -o cryoutils-ng-desktop .`
 - **Build web UI**: `cd web && npm ci && npm run build`
-- **Test**: `go test ./core/...` · `go vet ./...`
+- **Test**: `cd core && CGO_ENABLED=0 go test ./...` · `cd core && CGO_ENABLED=0 go vet ./...` · `cd cmd/desktop && CGO_ENABLED=0 go vet ./...`
+- **Note**: `go build ./...` and `go vet ./...` at repo root fail due to Fyne GL dependency in `internal/` (no GPU in dev env); build each module separately.
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
 - **Permissions**: tweaks need sudo; `core/sudo.go` handles password → `sudo -S echo` timestamp cache (same mechanism as original `renewSudoAuth`).
@@ -75,9 +77,9 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 1**: core extraction ✅
 - **Phase 2**: CLI rework + `status` command ✅
 - **Phase 3**: desktop web server (REST + SSE + token) ✅
-- **Phase 4**: single-page React UI
-- **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh)
-- **Phase 6**: verification
+- **Phase 4**: single-page React UI ✅
+- **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh) ✅
+- **Phase 6**: verification (user — requires real Steam Deck)
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
 ## License & Usage Rights

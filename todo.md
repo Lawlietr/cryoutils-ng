@@ -30,7 +30,7 @@
 - [x] `cmd/cryoutilities/main.go` — updated to use `core.Engine`, added `status` command
 - [x] `go build ./...` ✅ · `go vet ./...` ✅ · core `CGO_ENABLED=0` ✅ · CLI `CGO_ENABLED=0` ✅
 - [x] `go test ./...` ✅ (all passing)
-- [ ] Delete `internal/` — deferred until Phase 4 (full UI rewrite removes all Fyne references)
+- [x] Delete `internal/` — deferred until Phase 4 (full UI rewrite removes all Fyne references)
 
 ## Phase 2: CLI Rework + `status` Command ✅
 - [x] `status` command added to CLI (prints all tuning statuses)
@@ -48,22 +48,25 @@
 - [x] `CGO_ENABLED=0` static build ✅
 - [x] `go vet ./cmd/desktop/...` ✅
 
-## Phase 4: Single-Page React UI
-- [ ] `web/` — React + Vite + TypeScript single-page UI
-- [ ] Vertical single column, no tabs
-- [ ] Header inline sudo unlock
-- [ ] Responsive: 3840×2160 (4K) and 1280×800 (Steam Deck native)
-- [ ] Plain CSS, framework-agnostic components
-- [ ] Headless browser verification (Playwright) at both resolutions
+## Phase 4: Single-Page React UI ✅
+- [x] `web/` — React + Vite + TypeScript single-page UI
+- [x] Vertical single column, no tabs
+- [x] Header inline sudo unlock
+- [x] Responsive: 3840×2160 (4K) and 1280×800 (Steam Deck native)
+- [x] Plain CSS, framework-agnostic components
+- [x] Headless browser verification (Playwright) at both resolutions
 
-## Phase 5: Packaging
-- [ ] `install.sh` — installs binary to `~/.cryoutils_ng/`, creates `.desktop` file
-- [ ] `uninstall.sh` — removes install artifacts, preserves data
-- [ ] `launcher.sh` — wrapper for Steam Big Picture mode
-- [ ] `.desktop` file — `CryoUtilsNG` entry in Steam Deck gamemode
-- [ ] Coexistence: never overwrite original CryoUtilities install paths
+## Phase 5: Packaging ✅
+- [x] `install.sh` — installs both CLI + desktop binaries to `~/.cryoutils_ng/`, creates `.desktop` files
+- [x] `uninstall.sh` — removes install artifacts, preserves data
+- [x] `launcher.sh` — wrapper for Steam Big Picture mode (calls `cryoutils-ng-desktop`)
+- [x] `.desktop` file — `CryoUtilsNG` entry in Steam Deck gamemode
+- [x] Coexistence: never overwrite original CryoUtilities install paths
+- [x] `.github/workflows/release.yml` — fixed to build web UI + both binaries + checksums
+- [x] `README.md` — updated with desktop server instructions and two-binary install flow
+- [x] `docs/manual-install.md` — updated for two binaries
 
-## Phase 6: Verification
+## Phase 6: Verification (user — requires real Steam Deck)
 - [ ] Real Steam Deck acceptance testing
 - [ ] Verify original CryoUtilities untouched
 - [ ] All CLI commands verified on real hardware
