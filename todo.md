@@ -4,8 +4,8 @@
 - [x] `.github/dependabot.yml` — gomod weekly, npm weekly, ignore npm major, 5 PR limit
 - [x] `.github/workflows/dependabot-auto-merge.yml` — auto-merge patch/minor, major needs review
 - [x] `.github/workflows/release.yml` — updated actions, removed Fyne apt deps, fixed binary path
-- [ ] GitHub UI: branch protection rulesets for `main` and `develop` (Require PR, Require status checks, Block force pushes)
-- [ ] GitHub UI: enable Dependabot security updates
+- [x] GitHub UI: branch protection rulesets for `main` and `develop` (Require PR, Require status checks, Block force pushes)
+- [x] GitHub UI: enable Dependabot security updates
 
 ## Phase 0: Dependency Modernization & Baseline ✅
 - [x] Go 1.26.5 verified at `/usr/local/go/bin/go`
