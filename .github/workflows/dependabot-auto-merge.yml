@@ -1,0 +1,43 @@
+# CryoUtils NG — Dependabot Auto-Merge
+#
+# Automatically enables auto-merge on Dependabot PRs that are patch or minor
+# updates only. Major bumps require manual review.
+#
+# How it works:
+#   1. Dependabot opens a PR → this workflow triggers
+#   2. fetch-metadata action inspects the PR and outputs the update type
+#   3. If semver-patch or semver-minor → gh pr merge --auto
+#   4. If semver-major → skip (developer must review manually)
+#
+# Note: the dependabot.yml also ignores npm major bumps at the config level,
+# so only gomod PRs can realistically hit the semver-major path.
+
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    # Only process PRs opened by Dependabot
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Enable auto-merge for patch/minor updates
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --merge "${{ github.event.pull_request.html_url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
