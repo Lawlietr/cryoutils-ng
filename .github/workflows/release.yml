@@ -1,55 +1,53 @@
 name: Main
 
-on: push
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
 env:
-  release_name: 2.0-${{github.run_number}}
+  release_name: 2.0-${{ github.run_number }}
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: golang gcc libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev libx11-dev xorg-dev
-          version: 1.0
+        uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '^1.26.x'
           check-latest: true
           cache: true
 
       - name: Install Go Packages
-        run:
-          go mod tidy
+        run: go mod tidy
 
       - name: Build
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryoutils-ng ./cmd/cryoutilities
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o cryoutils-ng ./cmd/cryoutils-ng
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{env.release_name}}
+          name: ${{ env.release_name }}
           path: cryoutils-ng
 
   main-release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         id: download
         with:
-          name: ${{env.release_name}}
+          name: ${{ env.release_name }}
 
       - name: Install Hub Package
         run: sudo apt-get install -y hub
@@ -80,17 +78,17 @@ jobs:
 
   dev-release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         id: download
         with:
-          name: ${{env.release_name}}
+          name: ${{ env.release_name }}
 
       - name: Install Hub Package
         run: sudo apt-get install -y hub

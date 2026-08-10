@@ -1,0 +1,48 @@
+# CryoUtils NG — Dependabot configuration
+# Auto-opens PRs for Go module and npm dependency updates (patch + minor only).
+# GitHub UI auto-merge is enabled separately (Settings → Pull requests → Auto-merge).
+
+version: 2
+
+updates:
+  # ── Go module (core engine + CLI + desktop server) ──────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Taipei"
+    commit-message:
+      prefix: "deps"
+    # Only bump patch and minor; major bumps require manual review
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Lawlietr"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # ── npm (web/ React UI) ─────────────────────────────────────────────────
+  # Note: web/ is scaffolded in Phase 4. This entry is pre-configured now so
+  # that once package.json lands, Dependabot starts tracking immediately.
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Taipei"
+    commit-message:
+      prefix: "deps(web)"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Lawlietr"
+    labels:
+      - "dependencies"
+      - "npm"
+    # Ignore major version bumps — let the developer decide when to upgrade
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"

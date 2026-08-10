@@ -4,12 +4,15 @@
 > **Project name**: CryoUtils NG (binary: `cryoutils-ng`, install dir: `~/.cryoutils_ng`, data root: `cryoutils_ng_steam_data`)
 
 ## Phase 0.5 — CI/CD Infrastructure (GitHub)
-- [ ] 建立 `.github/dependabot.yml`，設定 Dependabot 自動 PR：
-  - `gomod` ecosystem → `core/` 目錄，weekly 檢查
+- [x] 建立 `.github/dependabot.yml`，設定 Dependabot 自動 PR：
+  - `gomod` ecosystem → `/` 目錄，weekly 檢查
   - `npm` ecosystem → `web/` 目錄，weekly 檢查
-  - commit message prefix: `deps: ` / `deps(web): `
-  - 限制 open PR 數量，避免 PR 洪水
-- [ ] GitHub repository 設定：branch protection + auto-merge (patch/minor)
+  - commit message prefix: `deps` / `deps(web)`
+  - 限制 open PR 數量（各 5 則），避免 PR 洪水
+  - npm 忽略 major 升級（需手動審視）
+- [x] GitHub repository 設定：branch protection + auto-merge (patch/minor)
+  - **注意**：auto-merge 需在 GitHub UI 手動開啟（Settings → Pull requests → Auto-merge → Allow auto-merge）
+  - branch protection（Require CI pass / Require branches to be up to date）也需在 UI 手動設定
 
 ## Phase 0 — Dependencies & Baseline
 - [ ] Install Go 1.26.5 on dev box (Ubuntu 24.04 x86_64, Node v22 present)
