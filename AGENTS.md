@@ -8,10 +8,10 @@
 
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
-- **`cmd/cryoutils-ng`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend).
+- **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`.
 - **`cmd/desktop`**: localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build → single-file install.
 - **`web/`**: React + Vite + TypeScript **single-page** UI (no tabs). Vertical single column; all settings + statuses on one view. Plain CSS, framework-agnostic components (reusable by Decky plugin later).
-- **`internal/`**: legacy Fyne UI — to be deleted at end of Phase 1.
+- **`internal/`**: legacy Fyne UI — retained for now, to be deleted at end of Phase 4 (full UI rewrite).
 
 ## UI Design Decisions (locked)
 - **Single page, vertical single column** — no tabs (original's tabs deemed redundant).
@@ -72,8 +72,8 @@ Project name confirmed: **CryoUtils NG**.
 ## Roadmap
 - **Phase 0.5**: CI/CD infrastructure (Dependabot for gomod + npm, auto-merge patch/minor) — see `todo.md`
 - **Phase 0**: dependency modernization (Go 1.26.5, fresh `core/go.mod`, drop Fyne) — see `todo.md`
-- **Phase 1**: core extraction
-- **Phase 2**: CLI rework + `status` command
+- **Phase 1**: core extraction ✅
+- **Phase 2**: CLI rework + `status` command ✅
 - **Phase 3**: desktop web server (REST + SSE + token)
 - **Phase 4**: single-page React UI
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh)

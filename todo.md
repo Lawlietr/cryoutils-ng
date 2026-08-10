@@ -13,7 +13,7 @@
 - [x] Root `go.mod` updated: go 1.26, updated deps, `replace cryoutils-ng/core => ./core`
 - [x] Fyne retained in root module (internal/ still imports it)
 - [x] `go build ./...` ✅ · `go vet ./...` ✅ · core `CGO_ENABLED=0` ✅
-- [ ] Root module `CGO_ENABLED=0` build — blocked until Phase 1 removes Fyne from internal/
+- [x] Root module `CGO_ENABLED=0` build ✅ (verified after Phase 1)
 
 ## Phase 1: Core Extraction ✅
 - [x] `core/config.go` — all constants migrated from `internal/config.go`
@@ -30,7 +30,7 @@
 - [x] `cmd/cryoutilities/main.go` — updated to use `core.Engine`, added `status` command
 - [x] `go build ./...` ✅ · `go vet ./...` ✅ · core `CGO_ENABLED=0` ✅ · CLI `CGO_ENABLED=0` ✅
 - [x] `go test ./...` ✅ (all passing)
-- [ ] Delete `internal/` — deferred until Phase 3 (desktop server still needs some internal refs) or Phase 4 (full UI rewrite)
+- [ ] Delete `internal/` — deferred until Phase 4 (full UI rewrite removes all Fyne references)
 
 ## Phase 2: CLI Rework + `status` Command ✅
 - [x] `status` command added to CLI (prints all tuning statuses)
