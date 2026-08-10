@@ -37,11 +37,16 @@
 - [x] All CLI subcommands use `core.Engine` methods
 - [x] CLI smoke test: `status` ✅, `swappiness 60` ✅, `help` ✅
 
-## Phase 3: Desktop Web Server
-- [ ] `cmd/desktop/main.go` — localhost web server (127.0.0.1 + random token)
-- [ ] REST API endpoints: `GET /api/status`, `POST /api/swap`, `POST /api/swappiness`, etc.
-- [ ] SSE progress endpoint for long-running operations
-- [ ] `go:embed` of web build → single-file install
+## Phase 3: Desktop Web Server ✅
+- [x] `cmd/desktop/main.go` — localhost web server (127.0.0.1 + random token)
+- [x] REST API endpoints: `GET /api/status`, `POST /api/swap/resize`, `POST /api/swap/swappiness`, `POST /api/memory/{name}`, `POST /api/recommended`, `POST /api/stock`, `POST /api/gamedata/sync`, `POST /api/gamedata/cleanup`, `GET /api/libraries`
+- [x] SSE progress endpoint (`/api/progress`) with keepalive
+- [x] `go:embed` of web build → single-file install
+- [x] Token auth on all privileged endpoints
+- [x] `core/progress.go` — broadcast progress channel
+- [x] Exported `RenewAuth()`, `RemoveGameData()`, `DataToMove.GetRight()/GetLeft()`
+- [x] `CGO_ENABLED=0` static build ✅
+- [x] `go vet ./cmd/desktop/...` ✅
 
 ## Phase 4: Single-Page React UI
 - [ ] `web/` — React + Vite + TypeScript single-page UI

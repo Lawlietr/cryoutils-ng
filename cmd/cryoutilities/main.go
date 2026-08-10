@@ -47,11 +47,10 @@ func main() {
 	// Provide a command structure for parsing
 	cmds := []acmd.Command{
 		{
-			Name:        "gui",
-			Description: "Run in GUI mode",
+			Name:        "desktop",
+			Description: "Run the desktop web server",
 			ExecFunc: func(context.Context, []string) error {
-				// GUI initialization deferred to Phase 4
-				return errors.New("GUI mode is not yet implemented in CryoUtils NG")
+				return errors.New("desktop server must be run as a separate binary: go run ./cmd/desktop")
 			},
 		},
 		{
@@ -187,9 +186,9 @@ func main() {
 		},
 	}
 
-	// If no args are passed, assume "gui"
+	// If no args are passed, assume "desktop"
 	if len(os.Args) <= 1 {
-		os.Args = []string{"", "gui"}
+		os.Args = []string{"", "desktop"}
 	}
 
 	// Basic program metadata

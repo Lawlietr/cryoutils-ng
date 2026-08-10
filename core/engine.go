@@ -92,6 +92,36 @@ func NewEngine(infoWriter, errWriter io.Writer) *Engine {
 	}
 }
 
+// SetProgressCallback sets the OnProgress callback used by the desktop server.
+func (e *Engine) SetProgressCallback(cb OnProgressCallback) {
+	e.OnProgress = cb
+}
+
+// GetSwappinessValueStr returns the current swappiness as a string.
+func (e *Engine) GetSwappinessValueStr() string {
+	v, _ := e.GetSwappinessValue()
+	return fmt.Sprintf("%d", v)
+}
+
+// GetAvailableSwapSizesStr returns the list of available swap sizes.
+func (e *Engine) GetAvailableSwapSizesStr() []string {
+	sizes, _ := e.GetAvailableSwapSizes()
+	return sizes
+}
+
+// GetLibraryLocations returns all Steam library locations.
+func (e *Engine) GetLibraryLocations() ([]string, error) {
+	libraries, err := e.FindDataFolders()
+	if err != nil {
+		return nil, err
+	}
+	var locations []string
+	for i := range libraries {
+		locations = append(locations, libraries[i].Path)
+	}
+	return locations, nil
+}
+
 // GetStatusSummary returns a map of current tuning statuses for CLI output.
 func (e *Engine) GetStatusSummary() map[string]string {
 	return map[string]string{
@@ -104,6 +134,12 @@ func (e *Engine) GetStatusSummary() map[string]string {
 		"CompactionProactiveness": fmt.Sprintf("%v", e.getCompactionProactivenessStatus()),
 		"Defrag":                  fmt.Sprintf("%v", e.getDefragStatus()),
 		"PageLockUnfairness":      fmt.Sprintf("%v", e.getPageLockUnfairnessStatus()),
+	}
+}
+
+func (e *Engine) emitProgress(msg string) {
+	if e.OnProgress != nil {
+		e.OnProgress(msg)
 	}
 }
 

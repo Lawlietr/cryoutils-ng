@@ -275,7 +275,7 @@ func GetHumanVRAMSize(size int) string {
 }
 
 // removeGameData removes the specified directories from the given locations.
-func (e *Engine) removeGameData(removeList []string, locations []string) {
+func (e *Engine) RemoveGameData(removeList []string, locations []string) {
 	e.InfoLog.Println("Removing the following content:")
 	for i := range removeList {
 		for j := range locations {

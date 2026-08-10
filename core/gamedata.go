@@ -47,6 +47,12 @@ type DataToMove struct {
 	leftSize  int64
 }
 
+// GetRight returns the list of directories to remove from the right location.
+func (d DataToMove) GetRight() []string { return d.right }
+
+// GetLeft returns the list of directories to remove from the left location.
+func (d DataToMove) GetLeft() []string { return d.left }
+
 // GetDirectoryList returns the names of directories inside path.
 func GetDirectoryList(path string, includeSymlinks bool) ([]string, error) {
 	var folderList []string

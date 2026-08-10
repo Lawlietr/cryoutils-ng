@@ -168,14 +168,14 @@ func (e *Engine) ChangeSwappiness(value string) error {
 
 // ChangeSwapSize changes the swap file to the specified size in GB.
 func (e *Engine) ChangeSwapSize(size int) error {
-	e.renewAuth()
+	e.RenewAuth()
 	if err := e.DisableSwap(); err != nil {
 		return err
 	}
 	if err := e.ResizeSwapFile(size); err != nil {
 		return err
 	}
-	e.renewAuth()
+	e.RenewAuth()
 	if err := e.SetSwapPermissions(); err != nil {
 		return err
 	}

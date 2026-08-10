@@ -24,7 +24,7 @@ import (
 
 // renewAuth sends the stored sudo password to a dummy sudo command to refresh
 // the sudo timestamp cache. This mirrors the original renewSudoAuth mechanism.
-func (e *Engine) renewAuth() {
+func (e *Engine) RenewAuth() {
 	cmd := exec.Command("sudo", "-S", "--", "echo")
 	cmd.WaitDelay = 500 * time.Millisecond
 	stdin, err := cmd.StdinPipe()
