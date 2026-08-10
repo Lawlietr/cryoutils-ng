@@ -11,8 +11,9 @@
   - 限制 open PR 數量（各 5 則），避免 PR 洪水
   - npm 忽略 major 升級（需手動審視）
 - [x] GitHub repository 設定：branch protection + auto-merge (patch/minor)
-  - **注意**：auto-merge 需在 GitHub UI 手動開啟（Settings → Pull requests → Auto-merge → Allow auto-merge）
-  - branch protection（Require CI pass / Require branches to be up to date）也需在 UI 手動設定
+  - auto-merge 已透過 `.github/workflows/dependabot-auto-merge.yml` 自動化處理
+    （patch/minor 自動合併，major 需手動審視）
+  - branch protection 需在 UI 手動設定（Require CI pass / Require branches up to date）
 
 ## Phase 0 — Dependencies & Baseline
 - [ ] Install Go 1.26.5 on dev box (Ubuntu 24.04 x86_64, Node v22 present)
