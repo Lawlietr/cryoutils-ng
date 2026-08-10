@@ -21,6 +21,17 @@
 - Long tasks (swap resize) show a top-of-page progress bar via SSE, never lost on scroll.
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
 
+## Desktop UI Launch (Decision — 方案 D)
+- **決策**:維持 web server + 瀏覽器架構,用 Chromium 系瀏覽器 `--new-window --app=<URL>` 開**無邊框獨立視窗**(外觀等同原生 app),不開普通分頁。
+- **Fallback 鏈**:lookpath 候選(google-chrome / chromium / microsoft-edge / brave-browser 等)→ flatpak(`flatpak list --app` 匹配 Brave/Chromium/Chrome/Edge,用 `flatpak run`)→ `xdg-open`。
+- **Flags**:`-no-browser`(只印 URL,不開視窗)、`-browser <path>`(強制指定瀏覽器)。
+- **不採用(已評估)**:
+  - WebView 內嵌(Wails/webview/webkit2gtk):Stock SteamOS 無 webkit2gtk(Valve issue #1851)且 rootfs 唯讀,依賴安裝不可行;需 CGO。
+  - Fyne/Gio 原生 UI:dev VM 無 GPU 無法驗證;丟失 React UI 與 Phase 7 Decky 重用。
+  - Electron/CEF:二進位 100MB+ 過重。
+- **保持**:`CGO_ENABLED=0` 靜態單檔、token 安全、React UI 供 Decky 重用。
+- **範圍外**:單實例鎖、Firefox 支援(走 xdg-open fallback)。
+
 ## Naming (confirmed)
 Project name confirmed: **CryoUtils NG**.
 - Go module: `cryoutils-ng`
@@ -79,6 +90,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 3**: desktop web server (REST + SSE + token) ✅
 - **Phase 4**: single-page React UI ✅
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh) ✅
+- **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above)
 - **Phase 6**: verification (user — requires real Steam Deck)
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
