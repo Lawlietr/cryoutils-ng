@@ -1,5 +1,5 @@
 import { useI18n } from './i18n'
-import { LOCALES } from './i18n/index'
+import { LOCALES, type Locale } from './i18n/index'
 
 export default function LanguageSelector() {
   const { locale, setLocale } = useI18n()
