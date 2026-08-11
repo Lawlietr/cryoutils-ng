@@ -81,13 +81,24 @@
 - [x] `launcher.sh` 更新(支援 `$@` 傳遞 flags)
 - [ ] 真實 Deck 確認 `--app=`、flatpak、`steam://openurl` 參數傳遞與視窗行為(Phase 6)
 
+**Deck 測試結果 (2026-08-11)**:
+- ✅ Desktop server 啟動成功，印出 URL
+- ✅ Web UI 可正常顯示數值（VRAM、swappiness 等）
+- ❌ Flatpak Chrome `--app=` 啟動但有 `blink.mojom.Widget` 錯誤，顯示拒絕連線
+- ❌ Flatpak Brave `--app=` 啟動但顯示拒絕連線
+- ⚠️ zsh globbing 問題：URL 中的 `=` 需加單引號 `'url'`
+- ⏳ `--app=` 在 SteamOS Flatpak 中的行為尚未確認（需 Valve CEF 測試）
+
 **範圍外**:單實例鎖、Firefox 支援(走 xdg-open fallback)
 
 ## Phase 6: Verification (user — requires real Steam Deck)
-- [ ] Real Steam Deck acceptance testing
-- [ ] Verify original CryoUtilities untouched
-- [ ] All CLI commands verified on real hardware
-- [ ] Web UI visual acceptance on real Deck
+- [x] Real Steam Deck acceptance testing (2026-08-11, CLI + Web UI basic smoke)
+- [x] Verify original CryoUtilities untouched (confirmed at `~/.cryo_utilities/`)
+- [x] CLI `status` command verified on real hardware (`SwapSizeGB: 16` ✅)
+- [ ] Web UI visual acceptance on real Deck (swap size fixed, need to verify `--app=` window)
+- [ ] All CLI commands verified on real hardware (`swappiness`, `recommended`, `stock`, `hugepages`, etc.)
+- [ ] `steam://openurl` fallback 確認（Flatpak `--app=` 失敗時的關鍵 fallback）
+- [ ] Flatpak zsh globbing 問題記錄到 README（URL 需加引號）
 
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
