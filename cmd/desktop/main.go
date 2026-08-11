@@ -19,12 +19,12 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"time"
 
@@ -72,10 +72,18 @@ func main() {
 	e.InfoLog.Println("Starting desktop server on", url)
 	fmt.Println(url)
 
-	// Open browser
+	// Parse CLI flags for browser control
+	var noBrowser bool
+	var overrideBrowser string
+	flag.BoolVar(&noBrowser, "no-browser", false, "Only print the URL, do not open a browser")
+	flag.StringVar(&overrideBrowser, "browser", "", "Force use of a specific browser path (e.g. /usr/bin/chromium)")
+	flag.Parse()
+
+	// Open browser using the fallback chain (app-window → flatpak → steam → xdg-open)
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		_ = exec.Command("xdg-open", url).Start()
+		method := openURL(url, noBrowser, overrideBrowser, e.InfoLog)
+		e.InfoLog.Printf("Browser launch method: %s", method)
 	}()
 
 	server := &http.Server{

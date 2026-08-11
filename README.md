@@ -42,9 +42,27 @@ See [manual-install.md](docs/manual-install.md).
 
 ### GUI (Desktop Mode)
 
-After installation, double-click the "CryoUtils NG" icon on the desktop or find it in the application menu under "Utilities". This launches the desktop web server and opens your browser automatically.
+After installation, double-click the "CryoUtils NG" icon on the desktop or find it in the application menu under "Utilities". This launches the desktop web server and opens your browser automatically as a chromeless app window (`--new-window --app=<url>`).
 
 The web UI runs on `127.0.0.1` with a per-launch random token. No network exposure — it only listens on localhost.
+
+#### Browser Launch Fallback Chain
+
+The desktop server tries browsers in this order:
+1. Native Chromium-family browsers (`google-chrome`, `chromium`, `chromium-browser`, `microsoft-edge`, `brave-browser`, `brave`, `firefox`) via `--new-window --app=`
+2. Flatpak browsers (`com.brave.Browser`, `org.chromium.Chromium`, `com.google.Chrome`, `com.microsoft.Edge`)
+3. `steam://openurl` (Steam's built-in CEF browser — guaranteed to exist on Deck)
+4. `xdg-open` (last resort)
+
+#### CLI Flags
+
+```bash
+# Print the URL without opening a browser
+cryoutils-ng-desktop -no-browser
+
+# Force a specific browser path
+cryoutils-ng-desktop -browser /usr/bin/chromium
+```
 
 ### CLI
 
@@ -88,6 +106,16 @@ Then run it directly:
 ```
 
 It will print a URL like `http://127.0.0.1:PORT/?token=TOKEN` — open that in your browser.
+
+Or use flags:
+
+```bash
+# Print URL only (for scripting or manual copy)
+./cryoutils-ng-desktop -no-browser
+
+# Force a specific browser
+./cryoutils-ng-desktop -browser /usr/bin/brave-browser
+```
 
 ## Upgrade
 

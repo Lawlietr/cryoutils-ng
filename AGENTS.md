@@ -91,7 +91,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 3**: desktop web server (REST + SSE + token) ✅
 - **Phase 4**: single-page React UI ✅
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh) ✅
-- **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above)
+- **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
 - **Phase 6**: verification (user — requires real Steam Deck)
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
