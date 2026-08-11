@@ -1,0 +1,62 @@
+{
+  "header": {
+    "locked": "🔒 Locked",
+    "unlocked": "🔓 Unlocked",
+    "sudoPassword": "sudo password",
+    "unlock": "Unlock"
+  },
+  "status": {
+    "title": "System Status",
+    "swapFile": "Swap File",
+    "swapSize": "Swap Size",
+    "swappiness": "Swappiness",
+    "vram": "VRAM",
+    "recommended": "✓ Recommended",
+    "default": "✗ Default",
+    "none": "None"
+  },
+  "swap": {
+    "title": "Swap Settings",
+    "swapSizeGB": "Swap Size (GB)",
+    "current": " (current)",
+    "resizing": "Resizing…",
+    "resizeSwap": "Resize Swap",
+    "apply": "Apply",
+    "setting": "Setting…"
+  },
+  "memory": {
+    "title": "Memory Settings",
+    "on": "ON",
+    "off": "OFF"
+  },
+  "vram": {
+    "title": "VRAM",
+    "readOnly": "VRAM is read-only from this application. To change VRAM allocation, reboot into BIOS and adjust the setting there."
+  },
+  "presets": {
+    "title": "Presets",
+    "applying": "Applying…",
+    "recommended": "Recommended",
+    "stock": "Stock"
+  },
+  "gamedata": {
+    "title": "Game Data",
+    "select": "— Select —",
+    "ssdLibrary": "SSD Library (Source)",
+    "externalLibrary": "External Library (Target)",
+    "syncing": "Syncing…",
+    "syncGameData": "Sync Game Data",
+    "cleaning": "Cleaning…",
+    "cleanupOrphanedData": "Cleanup Orphaned Data"
+  },
+  "memoryParams": {
+    "hugepages": "Huge Pages",
+    "shmem": "SHMem",
+    "compaction_proactiveness": "Compaction Proactiveness",
+    "defrag": "Defrag",
+    "page_lock_unfairness": "Page Lock Unfairness"
+  },
+  "common": {
+    "loading": "Loading…"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "header": {
+    "locked": "🔒 已鎖定",
+    "unlocked": "🔓 已解鎖",
+    "sudoPassword": "sudo 密碼",
+    "unlock": "解鎖"
+  },
+  "status": {
+    "title": "系統狀態",
+    "swapFile": "Swap 檔案",
+    "swapSize": "Swap 大小",
+    "swappiness": "Swappiness",
+    "vram": "VRAM",
+    "recommended": "✓ 建議值",
+    "default": "✗ 預設值",
+    "none": "無"
+  },
+  "swap": {
+    "title": "Swap 設定",
+    "swapSizeGB": "Swap 大小（GB）",
+    "current": "（目前）",
+    "resizing": "調整中…",
+    "resizeSwap": "調整 Swap",
+    "apply": "套用",
+    "setting": "設定中…"
+  },
+  "memory": {
+    "title": "記憶體設定",
+    "on": "開啟",
+    "off": "關閉"
+  },
+  "vram": {
+    "title": "VRAM",
+    "readOnly": "VRAM 在此應用程式中為唯讀。要變更 VRAM 配置，請重新開機進入 BIOS 調整設定。"
+  },
+  "presets": {
+    "title": "預設值",
+    "applying": "套用中…",
+    "recommended": "建議設定",
+    "stock": "原廠設定"
+  },
+  "gamedata": {
+    "title": "遊戲資料",
+    "select": "— 選擇 —",
+    "ssdLibrary": "SSD 遊戲庫（來源）",
+    "externalLibrary": "外接裝置遊戲庫（目標）",
+    "syncing": "同步中…",
+    "syncGameData": "同步遊戲資料",
+    "cleaning": "清除中…",
+    "cleanupOrphanedData": "清除孤兒資料"
+  },
+  "memoryParams": {
+    "hugepages": "大記憶體頁面",
+    "shmem": "共享記憶體",
+    "compaction_proactiveness": "壓縮積極性",
+    "defrag": "碎片整理",
+    "page_lock_unfairness": "頁面鎖定不公平性"
+  },
+  "common": {
+    "loading": "載入中…"
+  }
+}

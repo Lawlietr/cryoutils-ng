@@ -22,10 +22,10 @@ export interface ProgressEvent {
 
 export type MemoryParam = 'hugepages' | 'shmem' | 'compaction_proactiveness' | 'defrag' | 'page_lock_unfairness'
 
-export const MEMORY_PARAM_LABELS: Record<MemoryParam, string> = {
-  hugepages: 'Huge Pages',
-  shmem: 'SHMem',
-  compaction_proactiveness: 'Compaction Proactiveness',
-  defrag: 'Defrag',
-  page_lock_unfairness: 'Page Lock Unfairness',
+export const MEMORY_PARAM_KEYS: Record<MemoryParam, string> = {
+  hugepages: 'memoryParams.hugepages',
+  shmem: 'memoryParams.shmem',
+  compaction_proactiveness: 'memoryParams.compaction_proactiveness',
+  defrag: 'memoryParams.defrag',
+  page_lock_unfairness: 'memoryParams.page_lock_unfairness',
 }

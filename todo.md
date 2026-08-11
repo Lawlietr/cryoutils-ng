@@ -66,6 +66,20 @@
 - [x] `README.md` — updated with desktop server instructions and two-binary install flow
 - [x] `docs/manual-install.md` — updated for two binaries
 
+## Phase 5.6: i18n 多國語言支援 + 版本號修正 ✅
+- [x] 版本號 `v2.2.2` → `v0.1.0`（重寫專案，semver pre-release）
+- [x] 建立 `web/public/locales/en.json` + `zh-TW.json` 翻譯檔
+- [x] `web/src/i18n/locales.ts` — **單一來源** locale 定義（`LOCALES` const + `Locale` 類型自動推導）
+- [x] `web/src/i18n/index.tsx` — i18n hook（Context + JSON 載入 + localStorage 持久化）
+- [x] `web/src/LanguageSelector.tsx` — 語言選單從 `LOCALES` 自動生成
+- [x] `web/src/types.ts` — `MEMORY_PARAM_LABELS` → `MEMORY_PARAM_KEYS`（translation key 化）
+- [x] `web/src/App.tsx` — 所有硬編碼字串替換為 `t.*` 翻譯呼叫
+- [x] `web/src/main.tsx` — 包覆 `I18nProvider`
+- [x] `web/src/App.css` — `.locale-select` 樣式
+- [x] `tsc --noEmit` ✅ · `npm run build` ✅
+- [ ] 後續添加更多語言（日語、簡體中文等）
+- [ ] Playwright 截圖測試更新（zh-TW 截圖）
+
 ## Phase 5.5: Desktop UI — 無邊框視窗模式 (方案 D) ✅
 **使用環境**:UI 主要在 Steam Deck **Desktop Mode**(Gaming Mode 非主要)。
 - [x] `cmd/desktop/browser.go` — `findAppBrowsers()`(lookpath 候選:google-chrome / chromium / chromium-browser / microsoft-edge / brave-browser / brave / firefox)

@@ -12,6 +12,8 @@ import {
   cleanupGameData,
   subscribeProgress,
 } from './api'
+import { useI18n } from './i18n/index'
+import LanguageSelector from './LanguageSelector'
 import type { StatusData, MemoryParam } from './types'
 import './App.css'
 
@@ -28,23 +30,26 @@ function Header({
   onPasswordChange: (v: string) => void
   onAuth: () => Promise<void>
 }) {
+  const { t } = useI18n()
+
   return (
     <header className="header">
       <h1>CryoUtils NG</h1>
-      <span className="version">v2.2.2</span>
+      <span className="version">v0.1.0</span>
+      <LanguageSelector />
       <div className="sudo-group">
         <span className={sudoLocked ? 'sudo-locked' : 'sudo-unlocked'}>
-          {sudoLocked ? '🔒 Locked' : '🔓 Unlocked'}
+          {sudoLocked ? t.header.locked : t.header.unlocked}
         </span>
         <input
           type="password"
-          placeholder="sudo password"
+          placeholder={t.header.sudoPassword}
           value={password}
           onChange={(e) => onPasswordChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') onAuth() }}
         />
         <button className="btn-sudo" onClick={onAuth} disabled={!password}>
-          Unlock
+          {t.header.unlock}
         </button>
       </div>
     </header>
@@ -52,35 +57,36 @@ function Header({
 }
 
 function StatusSection({ status }: { status: StatusData }) {
+  const { t } = useI18n()
   const boolFields: Array<keyof StatusData> = [
     'HugePages', 'ShMem', 'CompactionProactiveness', 'Defrag', 'PageLockUnfairness',
   ]
 
   return (
     <section className="section">
-      <h2>System Status</h2>
+      <h2>{t.status.title}</h2>
       <div className="status-grid">
         <div className="status-item">
-          <span className="status-label">Swap File</span>
-          <span className="status-value">{status.SwapFile || 'None'}</span>
+          <span className="status-label">{t.status.swapFile}</span>
+          <span className="status-value">{status.SwapFile || t.status.none}</span>
         </div>
         <div className="status-item">
-          <span className="status-label">Swap Size</span>
+          <span className="status-label">{t.status.swapSize}</span>
           <span className="status-value">{status.SwapSizeGB || '?'} GB</span>
         </div>
         <div className="status-item">
-          <span className="status-label">Swappiness</span>
+          <span className="status-label">{t.status.swappiness}</span>
           <span className="status-value">{status.Swappiness}</span>
         </div>
         <div className="status-item">
-          <span className="status-label">VRAM</span>
+          <span className="status-label">{t.status.vram}</span>
           <span className="status-value readonly">{status.VRAM} (BIOS)</span>
         </div>
         {boolFields.map((key) => (
           <div className="status-item" key={key}>
             <span className="status-label">{key.replace(/_/g, ' ')}</span>
             <span className={`status-value ${status[key] === 'true' ? 'ok' : 'not-ok'}`}>
-              {status[key] === 'true' ? '✓ Recommended' : '✗ Default'}
+              {status[key] === 'true' ? t.status.recommended : t.status.default}
             </span>
           </div>
         ))}
@@ -138,11 +144,13 @@ function SwapSection({
     }
   }
 
+  const { t } = useI18n()
+
   return (
     <section className="section">
-      <h2>Swap Settings</h2>
+      <h2>{t.swap.title}</h2>
       <div className="swap-row">
-        <label>Swap Size (GB)</label>
+        <label>{t.swap.swapSizeGB}</label>
         <select
           value={selectedSize}
           onChange={(e) => setSelectedSize(e.target.value)}
@@ -150,16 +158,16 @@ function SwapSection({
         >
           {swapSizes.map((s) => (
             <option key={s} value={s}>
-              {s}{s === status.SwapSizeGB ? ' (current)' : ''}
+              {s}{s === status.SwapSizeGB ? t.swap.current : ''}
             </option>
           ))}
         </select>
         <button className="btn" onClick={handleResize} disabled={sudoLocked || busy}>
-          {busy ? 'Resizing…' : 'Resize Swap'}
+          {busy ? t.swap.resizing : t.swap.resizeSwap}
         </button>
       </div>
       <div className="swap-row">
-        <label>Swappiness</label>
+        <label>{t.status.swappiness}</label>
         <input
           type="number"
           min={0}
@@ -170,7 +178,7 @@ function SwapSection({
           style={{ width: '80px' }}
         />
         <button className="btn" onClick={handleSwappiness} disabled={sudoLocked || busy}>
-          {busy ? 'Setting…' : 'Apply'}
+          {busy ? t.swap.setting : t.swap.apply}
         </button>
       </div>
     </section>
@@ -186,6 +194,7 @@ function MemorySection({
   sudoLocked: boolean
   onProgress: (msg: string) => void
 }) {
+  const { t, tKey } = useI18n()
   const [busy, setBusy] = useState<string | null>(null)
 
   const params: MemoryParam[] = [
@@ -215,20 +224,20 @@ function MemorySection({
 
   return (
     <section className="section">
-      <h2>Memory Settings</h2>
+      <h2>{t.memory.title}</h2>
       <div className="memory-list">
         {params.map((param) => {
           const key = statusMap[param]
           const isActive = status[key] === 'true'
           return (
             <div className="memory-item" key={param}>
-              <span className="memory-name">{param.replace(/_/g, ' ')}</span>
+              <span className="memory-name">{tKey(`memoryParams.${param}`)}</span>
               <button
                 className={`btn-toggle ${isActive ? 'active' : ''}`}
                 onClick={() => handleToggle(param)}
                 disabled={sudoLocked || busy !== null}
               >
-                {isActive ? 'ON' : 'OFF'}
+                {isActive ? t.memory.on : t.memory.off}
               </button>
             </div>
           )
@@ -239,12 +248,12 @@ function MemorySection({
 }
 
 function VramSection() {
+  const { t } = useI18n()
   return (
     <section className="section">
-      <h2>VRAM</h2>
+      <h2>{t.vram.title}</h2>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-        VRAM is read-only from this application. To change VRAM allocation,
-        reboot into BIOS and adjust the setting there.
+        {t.vram.readOnly}
       </p>
     </section>
   )
@@ -281,23 +290,25 @@ function PresetSection({
     }
   }
 
+  const { t } = useI18n()
+
   return (
     <section className="section">
-      <h2>Presets</h2>
+      <h2>{t.presets.title}</h2>
       <div className="preset-row">
         <button
           className="btn-preset btn-recommended"
           onClick={handleRecommended}
           disabled={sudoLocked || busy}
         >
-          {busy ? 'Applying…' : 'Recommended'}
+          {busy ? t.presets.applying : t.presets.recommended}
         </button>
         <button
           className="btn-preset btn-stock"
           onClick={handleStock}
           disabled={sudoLocked || busy}
         >
-          {busy ? 'Applying…' : 'Stock'}
+          {busy ? t.presets.applying : t.presets.stock}
         </button>
       </div>
     </section>
@@ -346,24 +357,26 @@ function GameDataSection({
     }
   }
 
+  const { t } = useI18n()
+
   return (
     <section className="section">
-      <h2>Game Data</h2>
+      <h2>{t.gamedata.title}</h2>
       <div className="gamedata-row">
         <div className="gamedata-select-row">
           <div>
-            <label>SSD Library (Source)</label>
+            <label>{t.gamedata.ssdLibrary}</label>
             <select value={left} onChange={(e) => setLeft(e.target.value)} disabled={sudoLocked}>
-              <option value="">— Select —</option>
+              <option value="">{t.gamedata.select}</option>
               {libraries.map((l) => (
                 <option key={l} value={l}>{l}</option>
               ))}
             </select>
           </div>
           <div>
-            <label>External Library (Target)</label>
+            <label>{t.gamedata.externalLibrary}</label>
             <select value={right} onChange={(e) => setRight(e.target.value)} disabled={sudoLocked}>
-              <option value="">— Select —</option>
+              <option value="">{t.gamedata.select}</option>
               {libraries.filter((l) => !l.startsWith('/home')).map((l) => (
                 <option key={l} value={l}>{l}</option>
               ))}
@@ -376,14 +389,14 @@ function GameDataSection({
             onClick={handleSync}
             disabled={sudoLocked || !left || !right || busy !== null}
           >
-            {busy === 'sync' ? 'Syncing…' : 'Sync Game Data'}
+            {busy === 'sync' ? t.gamedata.syncing : t.gamedata.syncGameData}
           </button>
           <button
             className="btn-gamedata btn-cleanup"
             onClick={handleCleanup}
             disabled={sudoLocked || !left || !right || busy !== null}
           >
-            {busy === 'cleanup' ? 'Cleaning…' : 'Cleanup Orphaned Data'}
+            {busy === 'cleanup' ? t.gamedata.cleaning : t.gamedata.cleanupOrphanedData}
           </button>
         </div>
       </div>
@@ -394,8 +407,10 @@ function GameDataSection({
 // ── Main App ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { t } = useI18n()
+
   const [status, setStatus] = useState<StatusData>({
-    SwapFile: 'Loading…',
+    SwapFile: t.common.loading,
     SwapSizeGB: '?',
     Swappiness: '?',
     VRAM: '?',

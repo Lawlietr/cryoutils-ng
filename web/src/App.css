@@ -89,6 +89,22 @@ body {
   align-self: flex-end;
 }
 
+.locale-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.locale-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .header .sudo-group {
   display: flex;
   align-items: center;
