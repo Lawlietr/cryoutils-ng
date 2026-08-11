@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && (mkdir -p public/locales && cp src/locales/*.json public/locales/)",
+    "build": "tsc && vite build && (mkdir -p dist/locales && cp src/locales/*.json dist/locales/)",
     "preview": "vite preview"
   },
   "dependencies": {
