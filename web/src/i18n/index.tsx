@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { LOCALES, type Locale, resolveLocale } from './locales'
+import { LOCALES_CODES, type Locale, type LocaleInfo } from './locales'
 
 // ── Translation key structure (for type safety) ──────────────────────────────
 
 export interface TranslationKeys {
+  _label?: string  // Display label for language selector (optional, falls back to code)
   header: {
     locked: string
     unlocked: string
@@ -92,6 +93,42 @@ export function resolveKey(obj: unknown, key: string): string {
   }
   return typeof current === 'string' ? current : key
 }
+
+// ── Auto-discover locales at build time ──────────────────────────────────────
+
+// Auto-discover locales at build time from src/locales/*.json
+// (files are copied to public/locales/ by the build script for runtime serving)
+const localeModules = import.meta.glob('/src/locales/*.json', { eager: true }) as Record<string, { default: TranslationKeys }>
+
+const LOCALES: Record<Locale, LocaleInfo> = {} as Record<Locale, LocaleInfo>
+for (const code of LOCALES_CODES) {
+  const mod = localeModules[`/src/locales/${code}.json`]
+  if (mod) {
+    const data = mod.default as TranslationKeys
+    LOCALES[code] = { code, label: data._label || code }
+  }
+}
+
+export { LOCALES }
+
+export function resolveLocale(browserLang: string): Locale {
+  const short = browserLang.slice(0, 2)
+  // Exact match first, then prefix match (e.g. "zh-Hant" → "zh-TW")
+  if (LOCALES[short as Locale]) return short as Locale
+  for (const code of LOCALES_CODES) {
+    if (code.startsWith(short)) return code
+  }
+  return LOCALES_CODES[0] // fallback to first locale (en)
+}
+
+export function getLocaleByCode(code: string): LocaleInfo | undefined {
+  return LOCALES[code as Locale]
+}
+
+// Re-export for convenience (LanguageSelector imports Locale from here)
+export { LOCALES_CODES, type Locale } from './locales'
+
+// ── Provider ─────────────────────────────────────────────────────────────────
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
