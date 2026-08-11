@@ -63,7 +63,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Note**: `go build ./...` and `go vet ./...` at repo root fail due to Fyne GL dependency in `internal/` (no GPU in dev env); build each module separately.
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
-- **Permissions**: tweaks need sudo; `core/sudo.go` handles password → `sudo -S echo` timestamp cache (same mechanism as original `renewSudoAuth`).
+- **Permissions**: tweaks need sudo; `core/sudo.go` handles password → `sudo -S -k -- echo` (`-k` forces cache invalidation, prevents wrong-password bypass).
 
 ## Dependencies (modernized)
 - **Kept + updated**: `golang.org/x/sys@v0.47.0`, `mountinfo@v0.7.2`, `otiai10/copy@v1.14.1`, `acmd@v0.12.0`, `vdf@v1.1.0` (already latest)
@@ -78,6 +78,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Security**: desktop server binds 127.0.0.1 only + per-launch random token (prevents other local processes driving privileged ops).
 
 ## Known Issues & Fixes
+- **Sudo cached timestamp bypass** (`core/sudo.go`): `sudo -S` 有 cached timestamp 時會忽略 stdin 密碼導致 `TestAuth` 永遠通過。修正：所有 `sudo` 指令加 `-k` flag 強制忘記 cache，`RenewAuth()` 回傳 `error` 並檢查空密碼。
 - **Swap file location bug** (`core/swap.go`): `/proc/swaps` 遇到 `/dev/zram0` 時應 `continue` 跳過，而非 `return error`。修正後正確讀取 `/home/swapfile`。
 - **Log directory auto-creation** (`cmd/cryoutilities/main.go` + `cmd/desktop/main.go`): 啟動時自動 `os.MkdirAll(core.InstallDirectory, 0755)` 建立目錄，避免 `sudo` 下 `os.UserHomeDir()` 回傳 `/root` 時找不到 log 檔。
 - **Status command stdout** (`cmd/cryoutilities/main.go`): `printStatus()` 新增 `fmt.Printf` 輸出到 stdout，log 檔仍保留 `InfoLog` 輸出。

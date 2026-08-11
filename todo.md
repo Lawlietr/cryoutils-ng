@@ -68,9 +68,9 @@
 
 ## Phase 5.6: i18n 多國語言支援 + 版本號修正 ✅
 - [x] 版本號 `v2.2.2` → `v0.1.0`（重寫專案，semver pre-release）
-- [x] 建立 `web/public/locales/en.json` + `zh-TW.json` 翻譯檔
-- [x] `web/src/i18n/locales.ts` — **單一來源** locale 定義（`LOCALES` const + `Locale` 類型自動推導）
-- [x] `web/src/i18n/index.tsx` — i18n hook（Context + JSON 載入 + localStorage 持久化）
+- [x] 建立 `web/src/locales/en.json` + `zh-TW.json` 翻譯檔（編譯後複製到 `dist/locales/`）
+- [x] `web/src/i18n/locales.ts` — **單一來源** locale 代碼白名單（`LOCALES_CODES` + `Locale` 類型）
+- [x] `web/src/i18n/index.tsx` — `import.meta.glob` 自動掃描 + Context provider + localStorage 持久化
 - [x] `web/src/LanguageSelector.tsx` — 語言選單從 `LOCALES` 自動生成
 - [x] `web/src/types.ts` — `MEMORY_PARAM_LABELS` → `MEMORY_PARAM_KEYS`（translation key 化）
 - [x] `web/src/App.tsx` — 所有硬編碼字串替換為 `t.*` 翻譯呼叫
@@ -113,6 +113,14 @@
 - [ ] All CLI commands verified on real hardware (`swappiness`, `recommended`, `stock`, `hugepages`, etc.)
 - [ ] `steam://openurl` fallback 確認（Flatpak `--app=` 失敗時的關鍵 fallback）
 - [ ] Flatpak zsh globbing 問題記錄到 README（URL 需加引號）
+
+## Phase 5.7: Sudo 安全修正 ✅
+- [x] `core/sudo.go` — `RenewAuth()` 加 `-k` flag 強制忘記 cached timestamp，回傳 `error`，檢查空密碼
+- [x] `core/sudo.go` — `TestAuth()` 加 `-k` flag 防止 cached timestamp 繞過驗證
+- [x] `core/swap.go` — `ChangeSwapSize` 的 `RenewAuth()` 檢查 error
+- [x] `cmd/desktop/api.go` — `handleSwapResize` 的 `RenewAuth()` 檢查 error + emit 錯誤訊息
+- [x] `AGENTS.md` — Known Issues 更新
+- [x] `go vet ./...` ✅ · build ✅ · 錯誤密碼正確拒絕 ✅
 
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
