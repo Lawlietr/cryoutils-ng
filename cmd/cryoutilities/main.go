@@ -20,6 +20,7 @@ import (
 	"context"
 	"cryoutils-ng/core"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -29,6 +30,10 @@ import (
 )
 
 func main() {
+	// Ensure install directory exists
+	if err := os.MkdirAll(core.InstallDirectory, 0755); err != nil {
+		log.Panic(err)
+	}
 	// Delete old log file
 	os.Remove(core.LogFilePath)
 	// Create a log file
@@ -210,6 +215,7 @@ func main() {
 func printStatus(e *core.Engine) error {
 	summary := e.GetStatusSummary()
 	for k, v := range summary {
+		fmt.Printf("%s: %s\n", k, v)
 		e.InfoLog.Printf("%s: %s", k, v)
 	}
 	return nil

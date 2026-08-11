@@ -34,6 +34,10 @@ import (
 const bindAddr = "127.0.0.1"
 
 func main() {
+	// Ensure install directory exists
+	if err := os.MkdirAll(core.InstallDirectory, 0755); err != nil {
+		log.Panic(err)
+	}
 	// Set up logging
 	os.Remove(core.LogFilePath)
 	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE, 0666)

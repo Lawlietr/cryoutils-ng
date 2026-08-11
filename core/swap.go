@@ -41,7 +41,7 @@ func (e *Engine) GetSwapFileLocation() (string, error) {
 		if len(fields) >= 3 && fields[0] != "Filename" {
 			location := fields[0]
 			if strings.HasPrefix(location, "/dev/") {
-				return "", fmt.Errorf("no swapfile found")
+				continue
 			}
 			return location, nil
 		}
