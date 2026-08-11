@@ -460,6 +460,7 @@ export default function App() {
     try {
       await auth(password)
       setSudoLocked(false)
+      await refreshStatus()
     } catch (e) {
       setProgressMsg(`Auth failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
