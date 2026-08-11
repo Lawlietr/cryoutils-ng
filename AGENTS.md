@@ -6,6 +6,13 @@
 - **Root Directory**: `/root/opencode-stuffs/steam-deck-utilities`
 - **Dev environment**: Ubuntu 24.04 x86_64 (Proxmox VM). Steam Deck target is also x86_64 → native compile, no cross-compile. Go 1.26.5 + Node v22 (already present). SteamOS needs **zero** dev toolchains — it only receives a prebuilt binary.
 
+## Working Rules (MANDATORY)
+- **禁止自行 commit / push**：任何 `git commit`、`git push`、`git tag` 必須等你明確指示才執行。你會在 Dev VM 與 SteamOS 之間頻繁切換測試，擅自推送可能覆蓋你的本地修改。
+- **工作前先確認環境**：每次任務開始時必須先用 `cat /etc/os-release | grep PRETTY_NAME` 確認當前在哪個環境，並回報給用戶。
+  - Dev VM (`a1` / `root@192.168.1.15`)：Ubuntu 24.04，有 Go + Node + 編譯工具
+  - SteamOS：rootfs 唯讀，無開發工具鏈，無 sshd，只接受預編譯二進位
+- **二進位複製方向**：SteamOS 未啟用 sshd，Dev VM 無法 SSH 到 SteamOS。所有二進位複製都由 **SteamOS 主動執行 `scp` 從 Dev VM 拉取**（`scp root@192.168.1.15:/path/to/binary ~/.cryoutils_ng/`）。Dev VM 端編譯完成後只需報告結果，不嘗試推送。
+
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
 - **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`. Published via GitHub Releases.
