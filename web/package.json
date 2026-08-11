@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "playwright test",
-    "test:screenshot": "playwright test --grep screenshot"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -19,8 +17,6 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.6.2",
-    "vite": "^6.0.1",
-    "@playwright/test": "^1.49.1",
-    "playwright": "^1.49.1"
+    "vite": "^6.0.1"
   }
 }
