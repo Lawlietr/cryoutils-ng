@@ -22,35 +22,41 @@ import (
 	"time"
 )
 
-// renewAuth sends the stored sudo password to a dummy sudo command to refresh
-// the sudo timestamp cache. This mirrors the original renewSudoAuth mechanism.
-func (e *Engine) RenewAuth() {
-	cmd := exec.Command("sudo", "-S", "--", "echo")
+// RenewAuth sends the stored sudo password to a dummy sudo command to refresh
+// the sudo timestamp cache. Returns error if password is empty or authentication fails.
+func (e *Engine) RenewAuth() error {
+	if e.Password == "" {
+		return fmt.Errorf("no stored password")
+	}
+	// -k forces sudo to forget cached timestamps, so stdin password is always required
+	cmd := exec.Command("sudo", "-S", "-k", "--", "echo")
 	cmd.WaitDelay = 500 * time.Millisecond
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		e.ErrorLog.Println(err)
-		return
+		return err
 	}
 	if err := cmd.Start(); err != nil {
 		e.ErrorLog.Println(err)
-		return
+		return err
 	}
 	if _, err := stdin.Write([]byte(e.Password + "\n")); err != nil {
 		cmd.Process.Kill()
 		e.ErrorLog.Println(err)
-		return
+		return err
 	}
 	stdin.Close()
 	if err := cmd.Wait(); err != nil {
-		e.ErrorLog.Println(err)
-		return
+		e.ErrorLog.Println("sudo auth failed")
+		return fmt.Errorf("sudo authentication failed")
 	}
+	return nil
 }
 
 // TestAuth verifies that the provided password is correct.
+// -k forces sudo to forget cached timestamps, so stdin password is always required.
 func (e *Engine) TestAuth(password string) error {
-	cmd := exec.Command("sudo", "-S", "--", "echo")
+	cmd := exec.Command("sudo", "-S", "-k", "--", "echo")
 	cmd.WaitDelay = 500 * time.Millisecond
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

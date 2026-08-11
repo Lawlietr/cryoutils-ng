@@ -152,7 +152,10 @@ func handleSwapResize(w http.ResponseWriter, r *http.Request, e *core.Engine, to
 
 	go func() {
 		emitProgress(fmt.Sprintf("Resizing swap to %d GB...", body.Size))
-		e.RenewAuth()
+		if err := e.RenewAuth(); err != nil {
+			emitProgress("Error: " + err.Error())
+			return
+		}
 		if err := e.DisableSwap(); err != nil {
 			emitProgress("Error disabling swap: " + err.Error())
 			return
@@ -162,7 +165,10 @@ func handleSwapResize(w http.ResponseWriter, r *http.Request, e *core.Engine, to
 			emitProgress("Error resizing: " + err.Error())
 			return
 		}
-		e.RenewAuth()
+		if err := e.RenewAuth(); err != nil {
+			emitProgress("Error: " + err.Error())
+			return
+		}
 		emitProgress("Setting permissions...")
 		if err := e.SetSwapPermissions(); err != nil {
 			emitProgress("Error setting permissions: " + err.Error())
