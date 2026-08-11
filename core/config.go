@@ -22,7 +22,7 @@ import (
 )
 
 // CurrentVersionNumber Version number to build with.
-var CurrentVersionNumber = "2.2.2"
+var CurrentVersionNumber = "v0.1.0"
 
 var homeDirectory, _ = os.UserHomeDir()
 
