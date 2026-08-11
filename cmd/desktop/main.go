@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -73,7 +74,13 @@ func main() {
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/")
 		if r.URL.Path == "" || r.URL.Path == "index.html" {
-			http.ServeFile(w, r, "index.html")
+			data, err := fs.ReadFile(WebFS, "index.html")
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write(data)
 			return
 		}
 		http.FileServer(http.FS(WebFS)).ServeHTTP(w, r)
