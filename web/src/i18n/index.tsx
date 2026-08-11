@@ -128,9 +128,21 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [translations]
   )
 
+  const safeT = translations ?? {
+    header: { locked: '', unlocked: '', sudoPassword: '', unlock: '' },
+    status: { title: '', swapFile: '', swapSize: '', swappiness: '', vram: '', recommended: '', default: '', none: '' },
+    swap: { title: '', swapSizeGB: '', current: '', resizing: '', resizeSwap: '', apply: '', setting: '' },
+    memory: { title: '', on: '', off: '' },
+    vram: { title: '', readOnly: '' },
+    presets: { title: '', applying: '', recommended: '', stock: '' },
+    gamedata: { title: '', select: '', ssdLibrary: '', externalLibrary: '', syncing: '', syncGameData: '', cleaning: '', cleanupOrphanedData: '' },
+    memoryParams: { hugepages: '', shmem: '', compaction_proactiveness: '', defrag: '', page_lock_unfairness: '' },
+    common: { loading: 'Loading...' },
+  }
+
   const value: I18nContextType = {
     locale,
-    t: translations ?? ({} as TranslationKeys),
+    t: safeT,
     setLocale,
     tKey,
   }

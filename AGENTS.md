@@ -97,6 +97,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 4**: single-page React UI ✅
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh) ✅
 - **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
+- **Phase 5.6**: i18n 多國語言支援 + 版本號 `v2.2.2` → `v0.1.0` ✅ — 自訂輕量 i18n hook（Context + JSON），單一來源 `locales.ts`，零程式碼變更新增語言
 - **Phase 6**: verification (user — requires real Steam Deck)
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 

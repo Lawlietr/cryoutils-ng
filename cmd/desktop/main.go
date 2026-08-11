@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"cryoutils-ng/core"
@@ -67,7 +68,16 @@ func main() {
 	setupAPIRoutes(mux, e, token)
 
 	// Serve embedded web build (Phase 4)
-	mux.Handle("/", http.FileServer(http.FS(WebFS)))
+	// Strip query string from path before serving — http.FileServer treats
+	// the entire path (including ?token=xxx from the browser URL) as a filename.
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/")
+		if r.URL.Path == "" || r.URL.Path == "index.html" {
+			http.ServeFile(w, r, "index.html")
+			return
+		}
+		http.FileServer(http.FS(WebFS)).ServeHTTP(w, r)
+	}))
 
 	// Start server
 	addr := net.JoinHostPort(bindAddr, strconv.Itoa(port))
