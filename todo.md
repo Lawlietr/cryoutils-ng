@@ -122,6 +122,52 @@
 - [x] `AGENTS.md` — Known Issues 更新
 - [x] `go vet ./...` ✅ · build ✅ · 錯誤密碼正確拒絕 ✅
 
+## P0.5: Sudo 認證重構（最高優先級）
+
+**背景**: 經過分析發現兩個問題需要修正：
+1. Web UI 密碼層在 Steam Deck 環境下多餘（遊戲機預設信任同機使用者）
+2. CLI 以 `sudo` 執行時，`RenewAuth()` 因 `e.Password == ""` 而失敗，但實際操作會成功（已是 root）
+
+**決策**:
+- Web UI 移除密碼輸入 UI（保留 token 作為 API 安全層）
+- `RenewAuth()` 新增 `os.Geteuid() == 0` 檢查：已以 root 執行時直接跳過
+
+- [ ] `core/sudo.go` — `RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接回傳 `nil`
+- [ ] `core/sudo.go` — `TestAuth()` 保留（供未來可能的管理員模式使用）
+- [ ] `web/src/App.tsx` — 移除 Header 中的密碼輸入框與 `sudoLocked` 狀態
+- [ ] `web/src/App.tsx` — 移除所有 `disabled={sudoLocked}` 條件（所有按鈕始終可點擊）
+- [ ] `web/src/types.ts` — 移除 `sudoLocked` 相關 prop
+- [ ] `cmd/desktop/api.go` — 移除 `handleAuth` 端點（或保留但不再呼叫）
+- [ ] `web/src/api.ts` — 移除 `auth()` 函數
+- [ ] CLI `swap` 命令在 SteamOS 上驗證（`sudo ~/.cryoutils_ng/cryoutils-ng swap 16`）
+- [ ] `AGENTS.md` — Known Issues 更新（記錄 CLI bug 與修正）
+- [ ] `AGENTS.md` — UI Design Decisions 更新（移除 sudo unlock 描述）
+
+## P0: ZRAM 支援（最高優先級）
+
+**背景**: SteamOS 3.6 引入 zram swap（priority 100, ~7.2 GB），與 swap file（priority -2, 16 GB）並存。原始 CryoUtilities 開發時 zram 尚未存在，因此程式碼完全未處理 zram。
+
+**已確認的 Bug**:
+- `ChangeSwapSize()` 執行 `swapoff -a` 後僅重新啟用 swap file，zram 需等待 systemd 裝置掃描（約 18 分鐘）才恢復
+- 程式碼中零 zram 相關處理（`grep zram` 無匹配）
+
+- [ ] `core/swap.go` — `ChangeSwapSize()` 完成後主動重新啟用 zram（`systemctl start systemd-zram-setup@zram0.service` 或 `swapon /dev/zram0`）
+- [ ] 在 `swapoff -a` 前偵測 zram 是否已啟用，作為恢復的判斷依據
+- [ ] `core/swap.go` — 新增 `GetZramStatus()` 方法：偵測 `/dev/zram0` 是否在 `/proc/swaps` 中，回傳啟用狀態
+- [ ] `core/engine.go` — 新增 `TotalSwapGB` 欄位：從 `/proc/meminfo` 的 `SwapTotal` 計算（包含 zram + swap file）
+- [ ] `web/` — Swap 區塊 UI 重構：
+  - 顯示 **Swap File Size**（用戶可調整的參數）
+  - 顯示 **ZRAM Size**（zram 容量，從 `/proc/meminfo` 的 `SwapTotal - swapfile size` 推導，或直接讀取 zram disksize）
+  - 顯示 **ZRAM Status**（啟用 / 停用）
+  - 顯示 **Total Swap**（zram + swap file 總和）
+- [ ] `web/src/types.ts` — 新增 `zramSizeGB`, `zramActive` 欄位到狀態結構
+- [ ] `cmd/desktop/api.go` — `GET /api/status` 回傳中新增 zram 相關欄位
+- [ ] `core/swap.go` — `GetSwapFileSize()` 行為保持不变（繼續只報告 swap file 大小）
+- [ ] CLI `status` 命令新增 zram 狀態輸出
+- [ ] `AGENTS.md` — Known Issues 更新（記錄 zram 行為與修正）
+
+---
+
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
 - [ ] Python shim calling CLI binary (`main.py`, `plugin.json`)

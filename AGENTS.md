@@ -23,7 +23,7 @@
 
 ## UI Design Decisions (locked)
 - **Single page, vertical single column** — no tabs (original's tabs deemed redundant).
-- **Header inline sudo unlock** — page always visible (read-only statuses); password field in header unlocks privileged actions.
+- **No password unlock** — Steam Deck 環境預設信任同機使用者；token 已提供 API 安全層。
 - **Responsive**: `clamp()` fluid fonts + `max-width` + compact breakpoint. Must render correctly at **3840×2160 (4K)** and **1280×800 (Steam Deck native)**.
 - **VRAM section is read-only** (actual VRAM change is via BIOS).
 - Long tasks (swap resize) show a top-of-page progress bar via SSE, never lost on scroll.
@@ -71,7 +71,10 @@ Project name confirmed: **CryoUtils NG**.
 - **Note**: `go build ./...` and `go vet ./...` at repo root fail due to Fyne GL dependency in `internal/` (no GPU in dev env); build each module separately.
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
-- **Permissions**: tweaks need sudo; `core/sudo.go` handles password → `sudo -S -k -- echo` (`-k` forces cache invalidation, prevents wrong-password bypass).
+- **Permissions**: tweaks need sudo; `core/sudo.go` handles auth:
+  - CLI 以 `sudo` 執行時（`os.Geteuid() == 0`）：直接跳過 `RenewAuth()`
+  - Web UI 執行時（deck 使用者）：`RenewAuth()` 使用儲存的密碼 → `sudo -S -k -- echo`（`-k` forces cache invalidation）
+  - Web UI 已移除密碼輸入，所有操作直接執行（token 提供 API 安全層）
 
 ## Dependencies (modernized)
 - **Kept + updated**: `golang.org/x/sys@v0.47.0`, `mountinfo@v0.7.2`, `otiai10/copy@v1.14.1`, `acmd@v0.12.0`, `vdf@v1.1.0` (already latest)
@@ -87,6 +90,8 @@ Project name confirmed: **CryoUtils NG**.
 
 ## Known Issues & Fixes
 - **Sudo cached timestamp bypass** (`core/sudo.go`): `sudo -S` 有 cached timestamp 時會忽略 stdin 密碼導致 `TestAuth` 永遠通過。修正：所有 `sudo` 指令加 `-k` flag 強制忘記 cache，`RenewAuth()` 回傳 `error` 並檢查空密碼。
+- **CLI sudo 執行時 RenewAuth 失敗** (`core/sudo.go`): CLI 以 `sudo` 執行時 `e.Password == ""`，`RenewAuth()` 因檢查空密碼而失敗，但實際操作會成功（已是 root）。修正：`RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接跳過。
+- **Web UI 密碼層多餘** (`web/src/App.tsx`): Steam Deck 環境預設信任同機使用者，token 已提供 API 安全。修正：移除密碼輸入 UI 與 `sudoLocked` 狀態。
 - **Swap file location bug** (`core/swap.go`): `/proc/swaps` 遇到 `/dev/zram0` 時應 `continue` 跳過，而非 `return error`。修正後正確讀取 `/home/swapfile`。
 - **Log directory auto-creation** (`cmd/cryoutilities/main.go` + `cmd/desktop/main.go`): 啟動時自動 `os.MkdirAll(core.InstallDirectory, 0755)` 建立目錄，避免 `sudo` 下 `os.UserHomeDir()` 回傳 `/root` 時找不到 log 檔。
 - **Status command stdout** (`cmd/cryoutilities/main.go`): `printStatus()` 新增 `fmt.Printf` 輸出到 stdout，log 檔仍保留 `InfoLog` 輸出。
