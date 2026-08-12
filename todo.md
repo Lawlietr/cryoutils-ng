@@ -77,7 +77,7 @@
 - [x] `web/src/main.tsx` — 包覆 `I18nProvider`
 - [x] `web/src/App.css` — `.locale-select` 樣式
 - [x] `tsc --noEmit` ✅ · `npm run build` ✅
-- [ ] 後續添加更多語言（日語、簡體中文等）
+- [ ] 後續添加更多語言（日語、簡體中文等）— 需同步新增 zram 翻譯鍵
 - [ ] Playwright 截圖測試更新（zh-TW 截圖）
 
 ## Phase 5.5: Desktop UI — 無邊框視窗模式 (方案 D) ✅
@@ -113,6 +113,7 @@
 - [ ] All CLI commands verified on real hardware (`swappiness`, `recommended`, `stock`, `hugepages`, etc.)
 - [ ] `steam://openurl` fallback 確認（Flatpak `--app=` 失敗時的關鍵 fallback）
 - [ ] Flatpak zsh globbing 問題記錄到 README（URL 需加引號）
+- [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復
 
 ## Phase 5.7: Sudo 安全修正 ✅
 - [x] `core/sudo.go` — `RenewAuth()` 加 `-k` flag 強制忘記 cached timestamp，回傳 `error`，檢查空密碼
@@ -151,20 +152,22 @@
 - `ChangeSwapSize()` 執行 `swapoff -a` 後僅重新啟用 swap file，zram 需等待 systemd 裝置掃描（約 18 分鐘）才恢復
 - 程式碼中零 zram 相關處理（`grep zram` 無匹配）
 
-- [ ] `core/swap.go` — `ChangeSwapSize()` 完成後主動重新啟用 zram（`systemctl start systemd-zram-setup@zram0.service` 或 `swapon /dev/zram0`）
-- [ ] 在 `swapoff -a` 前偵測 zram 是否已啟用，作為恢復的判斷依據
-- [ ] `core/swap.go` — 新增 `GetZramStatus()` 方法：偵測 `/dev/zram0` 是否在 `/proc/swaps` 中，回傳啟用狀態
-- [ ] `core/engine.go` — 新增 `TotalSwapGB` 欄位：從 `/proc/meminfo` 的 `SwapTotal` 計算（包含 zram + swap file）
-- [ ] `web/` — Swap 區塊 UI 重構：
+- [x] `core/swap.go` — `ChangeSwapSize()` 完成後主動重新啟用 zram（`swapon /dev/zram0`）
+- [x] 在 `swapoff -a` 前偵測 zram 是否已啟用，作為恢復的判斷依據
+- [x] `core/swap.go` — 新增 `GetZramStatus()` 方法：偵測 `/dev/zram0` 是否在 `/proc/swaps` 中，回傳啟用狀態
+- [x] `core/swap.go` — 新增 `GetZramSizeBytes()` 方法：讀取 `/sys/block/zram0/disksize`
+- [x] `core/engine.go` — 新增 `getTotalSwapGB()`：從 `/proc/meminfo` 的 `SwapTotal` 計算（包含 zram + swap file）
+- [x] `core/engine.go` — `GetStatusSummary()` 新增 `ZramSizeGB`, `ZramActive`, `TotalSwapGB` 欄位
+- [x] `web/` — Swap 區塊 UI 重構：
   - 顯示 **Swap File Size**（用戶可調整的參數）
-  - 顯示 **ZRAM Size**（zram 容量，從 `/proc/meminfo` 的 `SwapTotal - swapfile size` 推導，或直接讀取 zram disksize）
+  - 顯示 **ZRAM Size**（直接讀取 zram disksize）
   - 顯示 **ZRAM Status**（啟用 / 停用）
-  - 顯示 **Total Swap**（zram + swap file 總和）
-- [ ] `web/src/types.ts` — 新增 `zramSizeGB`, `zramActive` 欄位到狀態結構
-- [ ] `cmd/desktop/api.go` — `GET /api/status` 回傳中新增 zram 相關欄位
-- [ ] `core/swap.go` — `GetSwapFileSize()` 行為保持不变（繼續只報告 swap file 大小）
-- [ ] CLI `status` 命令新增 zram 狀態輸出
-- [ ] `AGENTS.md` — Known Issues 更新（記錄 zram 行為與修正）
+  - 顯示 **Total Swap**（zram + swap file 總和，從 `/proc/meminfo` 讀取）
+- [x] `web/src/types.ts` — 新增 `ZramSizeGB`, `ZramActive`, `TotalSwapGB` 欄位到狀態結構
+- [x] `cmd/desktop/api.go` — `GET /api/status` 自動回傳新增欄位（透過 `GetStatusSummary()`）
+- [x] `core/swap.go` — `GetSwapFileSize()` 行為保持不变（繼續只報告 swap file 大小）
+- [x] CLI `status` 命令新增 zram 狀態輸出
+- [x] `AGENTS.md` — Known Issues 更新（記錄 zram 行為與修正）
 
 ---
 

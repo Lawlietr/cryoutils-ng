@@ -77,3 +77,8 @@ fyne-cross/*
 cryoutilities.log
 /Dockerfile
 /build
+
+# Compiled binaries
+*.exe
+cryoutils-ng
+cryoutils-ng-desktop

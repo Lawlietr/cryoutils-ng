@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strconv"
+	"strings"
 )
 
 // OnProgressCallback is called with a progress message during long-running operations.
@@ -124,9 +127,16 @@ func (e *Engine) GetLibraryLocations() ([]string, error) {
 
 // GetStatusSummary returns a map of current tuning statuses for CLI output.
 func (e *Engine) GetStatusSummary() map[string]string {
+	zramActive, _ := e.GetZramStatus()
+	zramSize, _ := e.GetZramSizeBytes()
+	zramSizeGB := int(zramSize / int64(GigabyteMultiplier))
+
 	return map[string]string{
 		"SwapFile":                e.SwapFileLocation,
 		"SwapSizeGB":              fmt.Sprintf("%d", e.getSwapSizeGB()),
+		"ZramSizeGB":              fmt.Sprintf("%d", zramSizeGB),
+		"ZramActive":              fmt.Sprintf("%v", zramActive),
+		"TotalSwapGB":             fmt.Sprintf("%d", e.getTotalSwapGB()),
 		"Swappiness":              fmt.Sprintf("%d", e.getSwappinessValueCLI()),
 		"VRAM":                    fmt.Sprintf("%s", GetHumanVRAMSize(e.getVRAMValueCLI())),
 		"HugePages":               fmt.Sprintf("%v", e.getHugePagesStatus()),
@@ -135,6 +145,24 @@ func (e *Engine) GetStatusSummary() map[string]string {
 		"Defrag":                  fmt.Sprintf("%v", e.getDefragStatus()),
 		"PageLockUnfairness":      fmt.Sprintf("%v", e.getPageLockUnfairnessStatus()),
 	}
+}
+
+// getTotalSwapGB returns total swap (zram + swap file) in GB from /proc/meminfo.
+func (e *Engine) getTotalSwapGB() int {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "SwapTotal:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				kb, _ := strconv.Atoi(fields[1])
+				return kb / (1024 * 1024)
+			}
+		}
+	}
+	return 0
 }
 
 func (e *Engine) emitProgress(msg string) {

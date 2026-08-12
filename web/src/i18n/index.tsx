@@ -15,10 +15,15 @@ export interface TranslationKeys {
     title: string
     swapFile: string
     swapSize: string
+    zramSize: string
+    zramActive: string
+    totalSwap: string
     swappiness: string
     vram: string
     recommended: string
     default: string
+    enabled: string
+    disabled: string
     none: string
   }
   swap: {
@@ -167,7 +172,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const safeT = translations ?? {
     header: { locked: '', unlocked: '', sudoPassword: '', unlock: '' },
-    status: { title: '', swapFile: '', swapSize: '', swappiness: '', vram: '', recommended: '', default: '', none: '' },
+    status: { title: '', swapFile: '', swapSize: '', zramSize: '', zramActive: '', totalSwap: '', swappiness: '', vram: '', recommended: '', default: '', enabled: '', disabled: '', none: '' },
     swap: { title: '', swapSizeGB: '', current: '', resizing: '', resizeSwap: '', apply: '', setting: '' },
     memory: { title: '', on: '', off: '' },
     vram: { title: '', readOnly: '' },

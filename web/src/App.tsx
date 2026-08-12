@@ -75,6 +75,20 @@ function StatusSection({ status }: { status: StatusData }) {
           <span className="status-value">{status.SwapSizeGB || '?'} GB</span>
         </div>
         <div className="status-item">
+          <span className="status-label">{t.status.zramSize}</span>
+          <span className="status-value">{status.ZramSizeGB || '0'} GB</span>
+        </div>
+        <div className="status-item">
+          <span className="status-label">{t.status.zramActive}</span>
+          <span className={`status-value ${status.ZramActive === 'true' ? 'ok' : 'not-ok'}`}>
+            {status.ZramActive === 'true' ? t.status.enabled : t.status.disabled}
+          </span>
+        </div>
+        <div className="status-item">
+          <span className="status-label">{t.status.totalSwap}</span>
+          <span className="status-value">{status.TotalSwapGB || '?'} GB</span>
+        </div>
+        <div className="status-item">
           <span className="status-label">{t.status.swappiness}</span>
           <span className="status-value">{status.Swappiness}</span>
         </div>
@@ -412,6 +426,9 @@ export default function App() {
   const [status, setStatus] = useState<StatusData>({
     SwapFile: t.common.loading,
     SwapSizeGB: '?',
+    ZramSizeGB: '0',
+    ZramActive: 'false',
+    TotalSwapGB: '?',
     Swappiness: '?',
     VRAM: '?',
     HugePages: 'false',

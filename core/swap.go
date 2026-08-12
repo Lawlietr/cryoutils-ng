@@ -166,11 +166,48 @@ func (e *Engine) ChangeSwappiness(value string) error {
 	return e.writeUnitFile("swappiness", value)
 }
 
+// GetZramStatus returns true if /dev/zram0 is currently active as swap.
+func (e *Engine) GetZramStatus() (bool, error) {
+	file, err := os.Open("/proc/swaps")
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan() // skip header
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) >= 1 && fields[0] == "/dev/zram0" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// GetZramSizeBytes returns the zram disk size in bytes, or 0 if zram is not present.
+func (e *Engine) GetZramSizeBytes() (int64, error) {
+	data, err := os.ReadFile("/sys/block/zram0/disksize")
+	if err != nil {
+		return 0, nil // zram not present
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return size, nil
+}
+
 // ChangeSwapSize changes the swap file to the specified size in GB.
+// After resizing, it re-enables zram if zram was active before swapoff.
 func (e *Engine) ChangeSwapSize(size int) error {
 	if err := e.RenewAuth(); err != nil {
 		return err
 	}
+
+	// Remember zram state before disabling all swap
+	zramActive, _ := e.GetZramStatus()
+
 	if err := e.DisableSwap(); err != nil {
 		return err
 	}
@@ -183,5 +220,18 @@ func (e *Engine) ChangeSwapSize(size int) error {
 	if err := e.SetSwapPermissions(); err != nil {
 		return err
 	}
-	return e.InitNewSwapFile()
+	if err := e.InitNewSwapFile(); err != nil {
+		return err
+	}
+
+	// Re-enable zram if it was active before swapoff
+	if zramActive {
+		e.InfoLog.Println("Re-enabling zram...")
+		if err := exec.Command("sudo", "swapon", "/dev/zram0").Run(); err != nil {
+			e.ErrorLog.Println("Failed to re-enable zram:", err)
+			// Don't return error — swap file is active, zram is a nice-to-have
+		}
+	}
+
+	return nil
 }

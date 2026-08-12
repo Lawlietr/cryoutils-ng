@@ -1,6 +1,9 @@
 export interface StatusData {
   SwapFile: string
   SwapSizeGB: string
+  ZramSizeGB: string
+  ZramActive: string
+  TotalSwapGB: string
   Swappiness: string
   VRAM: string
   HugePages: string

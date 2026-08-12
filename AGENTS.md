@@ -95,6 +95,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Swap file location bug** (`core/swap.go`): `/proc/swaps` 遇到 `/dev/zram0` 時應 `continue` 跳過，而非 `return error`。修正後正確讀取 `/home/swapfile`。
 - **Log directory auto-creation** (`cmd/cryoutilities/main.go` + `cmd/desktop/main.go`): 啟動時自動 `os.MkdirAll(core.InstallDirectory, 0755)` 建立目錄，避免 `sudo` 下 `os.UserHomeDir()` 回傳 `/root` 時找不到 log 檔。
 - **Status command stdout** (`cmd/cryoutilities/main.go`): `printStatus()` 新增 `fmt.Printf` 輸出到 stdout，log 檔仍保留 `InfoLog` 輸出。
+- **ZRAM 支援** (`core/swap.go`): SteamOS 3.6+ 使用 zram swap（`/dev/zram0`）與 swap file 並存。`ChangeSwapSize()` 執行 `swapoff -a` 後會主動重新啟用 zram（`swapon /dev/zram0`），避免等待 systemd 裝置掃描（約 18 分鐘）。`GetZramStatus()` 讀取 `/proc/swaps`，`GetZramSizeBytes()` 讀取 `/sys/block/zram0/disksize`，`getTotalSwapGB()` 從 `/proc/meminfo` 的 `SwapTotal` 計算總 swap（zram + swap file）。
 
 ## Testing & Verification
 - Unit tests in `core/` (ported from `internal/util_test.go`).
