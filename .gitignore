@@ -82,3 +82,12 @@ cryoutilities.log
 *.exe
 cryoutils-ng
 cryoutils-ng-desktop
+
+# Node modules
+node_modules/
+
+# Test results
+web/test-results/
+
+# Local docs
+/docs/zram-howto.md

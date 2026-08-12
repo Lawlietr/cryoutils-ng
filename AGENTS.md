@@ -13,6 +13,15 @@
   - SteamOS：rootfs 唯讀，無開發工具鏈，無 sshd，只接受預編譯二進位
 - **二進位複製方向**：SteamOS 未啟用 sshd，Dev VM 無法 SSH 到 SteamOS。所有二進位複製都由 **SteamOS 主動執行 `scp` 從 Dev VM 拉取**（`scp root@192.168.1.15:/path/to/binary ~/.cryoutils_ng/`）。Dev VM 端編譯完成後只需報告結果，不嘗試推送。
 - **Go 路徑**：`go` 不在 agent 的 PATH 中（`.bashrc` 對非互動式 shell 無效）。**所有 Go 命令必須使用完整路徑**：`/usr/local/go/bin/go`。例如：`/usr/local/go/bin/go build -o cryoutils-ng ./cmd/cryoutilities`。
+- **Git 規範（MANDATORY）**：
+  - **`.gitignore` 是單一來源**：任何不應該入版控的檔案，必須同時出現在 `.gitignore` 中。若發現檔案被追蹤但不應追蹤，**先更新 `.gitignore`，再執行 `git rm --cached <path>` 移除追蹤，然後才能 commit**。
+  - **禁止追蹤的檔案類型**：
+    - `node_modules/`（所有 Node.js 依賴）
+    - 編譯產物：`cryoutils-ng`、`cryoutils-ng-desktop`、`*.exe`
+    - 測試結果：`web/test-results/`
+    - 日誌檔：`cryoutilities.log`、`cryoutils_ng.log`
+  - **commit 前必做檢查**：執行 `git status --short` 與 `git diff --cached --stat`，確認沒有上述禁止類型。若發現違規檔案，停下並回報，不要直接 commit。
+  - **已知歷史錯誤**：2025-07-17 曾因 `.gitignore` 缺少 `node_modules/` 規則，導致 3707 筆 `web/node_modules/` 檔案被錯誤追蹤。已修正 `.gitignore` 並從 git 移除，此條規則用於防止再次發生。
 
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
@@ -89,6 +98,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Security**: desktop server binds 127.0.0.1 only + per-launch random token (prevents other local processes driving privileged ops).
 
 ## Known Issues & Fixes
+- **`.gitignore` 遺漏 `node_modules/`**（2025-07-17，已修正）：`.gitignore` 缺少 `node_modules/` 與 `web/test-results/` 規則，導致 3707 筆 `web/node_modules/` + 1 筆測試結果檔案被錯誤追蹤並 commit。修正方式：在 `.gitignore` 加入 `node_modules/` 與 `web/test-results/`，執行 `git rm -r --cached web/node_modules web/test-results` 移除追蹤。此問題已記錄於 Working Rules 的 Git 規範中。
 - **Sudo cached timestamp bypass** (`core/sudo.go`): `sudo -S` 有 cached timestamp 時會忽略 stdin 密碼導致 `TestAuth` 永遠通過。修正：所有 `sudo` 指令加 `-k` flag 強制忘記 cache，`RenewAuth()` 回傳 `error` 並檢查空密碼。
 - **CLI sudo 執行時 RenewAuth 失敗** (`core/sudo.go`): CLI 以 `sudo` 執行時 `e.Password == ""`，`RenewAuth()` 因檢查空密碼而失敗，但實際操作會成功（已是 root）。修正：`RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接跳過。
 - **Web UI 密碼層多餘** (`web/src/App.tsx`): Steam Deck 環境預設信任同機使用者，token 已提供 API 安全。修正：移除密碼輸入 UI 與 `sudoLocked` 狀態。
