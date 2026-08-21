@@ -18,16 +18,6 @@ export async function fetchStatus(): Promise<StatusData> {
   return json.data as StatusData
 }
 
-export async function auth(password: string): Promise<void> {
-  const res = await fetch(buildUrl('/api/auth'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-  })
-  const json: ApiResponse = await res.json()
-  if (!json.success) throw new Error(json.error ?? 'Authentication failed')
-}
-
 export async function resizeSwap(size: number): Promise<void> {
   const res = await fetch(buildUrl('/api/swap/resize'), {
     method: 'POST',

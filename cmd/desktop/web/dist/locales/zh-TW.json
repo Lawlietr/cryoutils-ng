@@ -1,24 +1,24 @@
 {
   "_label": "繁體中文",
-  "header": {
-    "locked": "🔒 已鎖定",
-    "unlocked": "🔓 已解鎖",
-    "sudoPassword": "sudo 密碼",
-    "unlock": "解鎖"
-  },
   "status": {
     "title": "系統狀態",
     "swapFile": "Swap 檔案",
     "swapSize": "Swap 大小",
+    "zramSize": "ZRAM 大小",
+    "zramActive": "ZRAM 狀態",
+    "totalSwap": "Swap 總量",
     "swappiness": "Swappiness",
     "vram": "VRAM",
     "recommended": "✓ 建議值",
     "default": "✗ 預設值",
+    "enabled": "✓ 已啟用",
+    "disabled": "✗ 未啟用",
     "none": "無"
   },
   "swap": {
     "title": "Swap 設定",
-    "swapSizeGB": "Swap 大小（GB）",
+    "swapSizeGB": "Swap 檔案大小（GB）",
+    "zramNote": "ZRAM 由系統管理，無法在此應用程式中變更。",
     "current": "（目前）",
     "resizing": "調整中…",
     "resizeSwap": "調整 Swap",

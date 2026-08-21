@@ -105,17 +105,23 @@
 
 **範圍外**:單實例鎖、Firefox 支援(走 xdg-open fallback)
 
-## Phase 6: Verification (user — requires real Steam Deck)
+## Phase 6: 統合真機驗證（user — requires real Steam Deck）
+
+> **重排（2026-08）**：原本排在 Phase 4/5 後；延後到 **Phase 6.5 完成後**一次做統合真機驗證（native UI 是主要路徑；web `--app=` 已知真機失敗，由 native 取代）。
+
 - [x] Real Steam Deck acceptance testing (2026-08-11, CLI + Web UI basic smoke)
 - [x] Verify original CryoUtilities untouched (confirmed at `~/.cryo_utilities/`)
 - [x] CLI `status` command verified on real hardware (`SwapSizeGB: 16` ✅)
-- [ ] Web UI visual acceptance on real Deck (swap size fixed, need to verify `--app=` window)
-- [ ] All CLI commands verified on real hardware (`swappiness`, `recommended`, `stock`, `hugepages`, etc.)
-- [ ] `steam://openurl` fallback 確認（Flatpak `--app=` 失敗時的關鍵 fallback）
+- [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復（P0 代碼已合併未真機驗過，優先度高）
+- [ ] All CLI commands verified on real hardware（`swappiness`、`recommended`、`stock`、`hugepages` 等，含 P0.5 後 `sudo` 執行 CLI 的 `Geteuid` 跳過路徑）
+- [ ] Web UI 視覺驗收（fallback 路徑，與 native 一次驗）
+- [ ] `steam://openurl` fallback 確認（次要；web 模式無瀏覽器可用時才走）
 - [ ] Flatpak zsh globbing 問題記錄到 README（URL 需加引號）
-- [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復
+- ~~Web UI `--app=` 視窗驗證~~ → **移除**：`--app=` 真機失敗已確認（見 Phase 5.5 Deck 測試結果），由 Fyne 原生 UI 取代
 
 ## Phase 6.5: Fyne 原生 UI（新）
+
+> 完成後接 Phase 6 統合真機驗證。
 
 > **施工手冊：`docs/fyne-ui-plan.md`**（全部決策已定案，標 [DECIDED] 的不要再評估）。
 > 方向（2026-08-21 定案）：全新撰寫 **Fyne v2.7.4** 原生 UI（**不沿用 `internal/` 舊 UI**）；web UI 保留（Decky + fallback）；`cmd/desktop -ui web|native`（預設 web）。
@@ -164,7 +170,7 @@
 - [x] `AGENTS.md` — Known Issues 更新
 - [x] `go vet ./...` ✅ · build ✅ · 錯誤密碼正確拒絕 ✅
 
-## P0.5: Sudo 認證重構（最高優先級）
+## P0.5: Sudo 認證重構 ✅（2026-08，代碼層完成；真機驗證併入 Phase 6 統合）
 
 **背景**: 經過分析發現兩個問題需要修正：
 1. Web UI 密碼層在 Steam Deck 環境下多餘（遊戲機預設信任同機使用者）
@@ -174,16 +180,17 @@
 - Web UI 移除密碼輸入 UI（保留 token 作為 API 安全層）
 - `RenewAuth()` 新增 `os.Geteuid() == 0` 檢查：已以 root 執行時直接跳過
 
-- [ ] `core/sudo.go` — `RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接回傳 `nil`
-- [ ] `core/sudo.go` — `TestAuth()` 保留（供未來可能的管理員模式使用）
-- [ ] `web/src/App.tsx` — 移除 Header 中的密碼輸入框與 `sudoLocked` 狀態
-- [ ] `web/src/App.tsx` — 移除所有 `disabled={sudoLocked}` 條件（所有按鈕始終可點擊）
-- [ ] `web/src/types.ts` — 移除 `sudoLocked` 相關 prop
-- [ ] `cmd/desktop/api.go` — 移除 `handleAuth` 端點（或保留但不再呼叫）
-- [ ] `web/src/api.ts` — 移除 `auth()` 函數
-- [ ] CLI `swap` 命令在 SteamOS 上驗證（`sudo ~/.cryoutils_ng/cryoutils-ng swap 16`）
-- [ ] `AGENTS.md` — Known Issues 更新（記錄 CLI bug 與修正）
-- [ ] `AGENTS.md` — UI Design Decisions 更新（移除 sudo unlock 描述）
+- [x] `core/sudo.go` — `RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接回傳 `nil`
+- [x] `core/sudo.go` — `TestAuth()` 保留（供 Fyne 原生 UI / 未來可能的管理員模式使用）
+- [x] `web/src/App.tsx` — 移除 Header 密碼輸入框、`sudoLocked`/`password` 狀態、`handleAuth`
+- [x] `web/src/App.tsx` — 移除全部 11 處 `disabled={sudoLocked ...}` 條件（按鈕僅受 `busy`/選值控制）
+- [x] `web/src/types.ts` — N/A（`sudoLocked` prop 原本定義在 `App.tsx` 各 component 的 inline interface，`types.ts` 從未承载）
+- [x] `cmd/desktop/api.go` — 移除 `handleAuth` 端點（`POST /api/auth` + handler 全刪）
+- [x] `web/src/api.ts` — 移除 `auth()` 函數
+- [x] 附帶清理：`web/src/locales/{en,zh-TW}.json` 移除 `header.*` sudo 鍵；`App.css` 移除 `.sudo-group`/`.btn-sudo`/`.sudo-locked/.sudo-unlocked`
+- [x] 驗證：`core` build+vet+test ✅、`web` `npm run build` ✅、`cmd/desktop` `CGO_ENABLED=0 go vet` ✅
+- [x] `AGENTS.md` — Known Issues + Permissions + UI Design Decisions 更新
+- [ ] CLI `swap` 命令在 SteamOS 上驗證（`sudo ~/.cryoutils_ng/cryoutils-ng swap 16`）→ 併入 Phase 6 統合真機驗證
 
 ## P0: ZRAM 支援（最高優先級）
 

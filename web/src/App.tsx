@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   fetchStatus,
-  auth,
   resizeSwap,
   setSwappiness,
   toggleMemory,
@@ -19,39 +18,12 @@ import './App.css'
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function Header({
-  sudoLocked,
-  password,
-  onPasswordChange,
-  onAuth,
-}: {
-  sudoLocked: boolean
-  password: string
-  onPasswordChange: (v: string) => void
-  onAuth: () => Promise<void>
-}) {
-  const { t } = useI18n()
-
+function Header() {
   return (
     <header className="header">
       <h1>CryoUtils NG</h1>
       <span className="version">v0.1.0</span>
       <LanguageSelector />
-      <div className="sudo-group">
-        <span className={sudoLocked ? 'sudo-locked' : 'sudo-unlocked'}>
-          {sudoLocked ? t.header.locked : t.header.unlocked}
-        </span>
-        <input
-          type="password"
-          placeholder={t.header.sudoPassword}
-          value={password}
-          onChange={(e) => onPasswordChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onAuth() }}
-        />
-        <button className="btn-sudo" onClick={onAuth} disabled={!password}>
-          {t.header.unlock}
-        </button>
-      </div>
     </header>
   )
 }
@@ -111,11 +83,9 @@ function StatusSection({ status }: { status: StatusData }) {
 
 function SwapSection({
   status,
-  sudoLocked,
   onProgress,
 }: {
   status: StatusData
-  sudoLocked: boolean
   onProgress: (msg: string) => void
 }) {
   const [swapSizes, setSwapSizes] = useState<string[]>([])
@@ -168,7 +138,7 @@ function SwapSection({
         <select
           value={selectedSize}
           onChange={(e) => setSelectedSize(e.target.value)}
-          disabled={sudoLocked || busy}
+          disabled={busy}
         >
           {swapSizes.map((s) => (
             <option key={s} value={s}>
@@ -176,7 +146,7 @@ function SwapSection({
             </option>
           ))}
         </select>
-        <button className="btn" onClick={handleResize} disabled={sudoLocked || busy}>
+        <button className="btn" onClick={handleResize} disabled={busy}>
           {busy ? t.swap.resizing : t.swap.resizeSwap}
         </button>
       </div>
@@ -188,10 +158,10 @@ function SwapSection({
           max={200}
           value={swappiness}
           onChange={(e) => setSwappiness(e.target.value)}
-          disabled={sudoLocked || busy}
+          disabled={busy}
           style={{ width: '80px' }}
         />
-        <button className="btn" onClick={handleSwappiness} disabled={sudoLocked || busy}>
+        <button className="btn" onClick={handleSwappiness} disabled={busy}>
           {busy ? t.swap.setting : t.swap.apply}
         </button>
       </div>
@@ -201,11 +171,9 @@ function SwapSection({
 
 function MemorySection({
   status,
-  sudoLocked,
   onProgress,
 }: {
   status: StatusData
-  sudoLocked: boolean
   onProgress: (msg: string) => void
 }) {
   const { t, tKey } = useI18n()
@@ -249,7 +217,7 @@ function MemorySection({
               <button
                 className={`btn-toggle ${isActive ? 'active' : ''}`}
                 onClick={() => handleToggle(param)}
-                disabled={sudoLocked || busy !== null}
+                disabled={busy !== null}
               >
                 {isActive ? t.memory.on : t.memory.off}
               </button>
@@ -274,10 +242,8 @@ function VramSection() {
 }
 
 function PresetSection({
-  sudoLocked,
   onProgress,
 }: {
-  sudoLocked: boolean
   onProgress: (msg: string) => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -313,14 +279,14 @@ function PresetSection({
         <button
           className="btn-preset btn-recommended"
           onClick={handleRecommended}
-          disabled={sudoLocked || busy}
+          disabled={busy}
         >
           {busy ? t.presets.applying : t.presets.recommended}
         </button>
         <button
           className="btn-preset btn-stock"
           onClick={handleStock}
-          disabled={sudoLocked || busy}
+          disabled={busy}
         >
           {busy ? t.presets.applying : t.presets.stock}
         </button>
@@ -330,10 +296,8 @@ function PresetSection({
 }
 
 function GameDataSection({
-  sudoLocked,
   onProgress,
 }: {
-  sudoLocked: boolean
   onProgress: (msg: string) => void
 }) {
   const [libraries, setLibraries] = useState<string[]>([])
@@ -380,7 +344,7 @@ function GameDataSection({
         <div className="gamedata-select-row">
           <div>
             <label>{t.gamedata.ssdLibrary}</label>
-            <select value={left} onChange={(e) => setLeft(e.target.value)} disabled={sudoLocked}>
+            <select value={left} onChange={(e) => setLeft(e.target.value)}>
               <option value="">{t.gamedata.select}</option>
               {libraries.map((l) => (
                 <option key={l} value={l}>{l}</option>
@@ -389,7 +353,7 @@ function GameDataSection({
           </div>
           <div>
             <label>{t.gamedata.externalLibrary}</label>
-            <select value={right} onChange={(e) => setRight(e.target.value)} disabled={sudoLocked}>
+            <select value={right} onChange={(e) => setRight(e.target.value)}>
               <option value="">{t.gamedata.select}</option>
               {libraries.filter((l) => !l.startsWith('/home')).map((l) => (
                 <option key={l} value={l}>{l}</option>
@@ -401,14 +365,14 @@ function GameDataSection({
           <button
             className="btn-gamedata btn-sync"
             onClick={handleSync}
-            disabled={sudoLocked || !left || !right || busy !== null}
+            disabled={!left || !right || busy !== null}
           >
             {busy === 'sync' ? t.gamedata.syncing : t.gamedata.syncGameData}
           </button>
           <button
             className="btn-gamedata btn-cleanup"
             onClick={handleCleanup}
-            disabled={sudoLocked || !left || !right || busy !== null}
+            disabled={!left || !right || busy !== null}
           >
             {busy === 'cleanup' ? t.gamedata.cleaning : t.gamedata.cleanupOrphanedData}
           </button>
@@ -437,10 +401,7 @@ export default function App() {
     Defrag: 'false',
     PageLockUnfairness: 'false',
   })
-  const [sudoLocked, setSudoLocked] = useState(true)
-  const [password, setPassword] = useState('')
   const [progressMsg, setProgressMsg] = useState('')
-  const [busy, setBusy] = useState(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
   const refreshStatus = useCallback(async () => {
@@ -472,35 +433,16 @@ export default function App() {
     }
   }, [refreshStatus])
 
-  const handleAuth = async () => {
-    setBusy(true)
-    try {
-      await auth(password)
-      setSudoLocked(false)
-      await refreshStatus()
-    } catch (e) {
-      setProgressMsg(`Auth failed: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setBusy(false)
-      setPassword('')
-    }
-  }
-
   return (
     <>
       {progressMsg && <div className="progress-message">{progressMsg}</div>}
-      <Header
-        sudoLocked={sudoLocked}
-        password={password}
-        onPasswordChange={setPassword}
-        onAuth={handleAuth}
-      />
+      <Header />
       <StatusSection status={status} />
-      <SwapSection status={status} sudoLocked={sudoLocked} onProgress={(msg) => setProgressMsg(msg)} />
-      <MemorySection status={status} sudoLocked={sudoLocked} onProgress={(msg) => setProgressMsg(msg)} />
+      <SwapSection status={status} onProgress={(msg) => setProgressMsg(msg)} />
+      <MemorySection status={status} onProgress={(msg) => setProgressMsg(msg)} />
       <VramSection />
-      <PresetSection sudoLocked={sudoLocked} onProgress={(msg) => setProgressMsg(msg)} />
-      <GameDataSection sudoLocked={sudoLocked} onProgress={(msg) => setProgressMsg(msg)} />
+      <PresetSection onProgress={(msg) => setProgressMsg(msg)} />
+      <GameDataSection onProgress={(msg) => setProgressMsg(msg)} />
     </>
   )
 }

@@ -38,9 +38,6 @@ func setupAPIRoutes(mux *http.ServeMux, e *core.Engine, token string) {
 	mux.HandleFunc("/api/progress", func(w http.ResponseWriter, r *http.Request) {
 		handleProgress(w, r)
 	})
-	mux.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
-		handleAuth(w, r, e)
-	})
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		handleStatus(w, r, e, token)
 	})
@@ -91,29 +88,6 @@ func requireToken(w http.ResponseWriter, r *http.Request, token string) bool {
 
 func emitProgress(msg string) {
 	core.ProgressChannel <- core.ProgressEvent{Message: msg}
-}
-
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
-func handleAuth(w http.ResponseWriter, r *http.Request, e *core.Engine) {
-	if r.Method != http.MethodPost {
-		respondError(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		respondError(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if err := e.TestAuth(body.Password); err != nil {
-		respondJSON(w, APIResponse{Success: false, Error: "authentication failed"})
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	e.Password = body.Password
-	respondJSON(w, APIResponse{Success: true})
 }
 
 // ─── Status ──────────────────────────────────────────────────────────────────

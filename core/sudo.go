@@ -18,13 +18,18 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
 
 // RenewAuth sends the stored sudo password to a dummy sudo command to refresh
 // the sudo timestamp cache. Returns error if password is empty or authentication fails.
+// When already running as root (e.g. CLI launched via sudo), authentication is skipped.
 func (e *Engine) RenewAuth() error {
+	if os.Geteuid() == 0 {
+		return nil
+	}
 	if e.Password == "" {
 		return fmt.Errorf("no stored password")
 	}

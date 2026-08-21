@@ -1,11 +1,5 @@
 {
   "_label": "繁體中文",
-  "header": {
-    "locked": "🔒 已鎖定",
-    "unlocked": "🔓 已解鎖",
-    "sudoPassword": "sudo 密碼",
-    "unlock": "解鎖"
-  },
   "status": {
     "title": "系統狀態",
     "swapFile": "Swap 檔案",

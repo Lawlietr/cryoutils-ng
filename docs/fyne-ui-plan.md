@@ -153,9 +153,11 @@ func onResize(size string, e *core.Engine, w *fyne.Window) {
 - 密碼只存 `e.Password`（記憶體），**不落磁碟**（決策 8）。
 - CLI 以 `sudo` 執行時 euid==0 的路徑由 `core/sudo.go` 處理，UI 不需理會。
 
-> **附註（既有缺口，記錄用）**：Web 模式在 P0.5 移除密碼輸入後，`POST /api/auth` 仍留在
-> `cmd/desktop/api.go` 但 UI 不再呼叫 → web 模式非 root 執行時 `e.Password` 恒為空、
-> `RenewAuth()` 會失敗。本 phase **不修 web**（native UI 有自己的對話框，不受影響）；
+> **附註（已知缺口，記錄用）**：P0.5 已完成（2026-08）：Web 模式的密碼輸入 UI 與
+> `cmd/desktop/api.go` 的 `POST /api/auth` 端點**皆已移除**，`core/sudo.go` 的
+> `RenewAuth()` 新增 `os.Geteuid() == 0` 跳過 → web 模式以 root 執行時正常；
+> 非 root web 執行時 `e.Password` 恒為空、`RenewAuth()` 會失敗（需權限操作會報錯）。
+> 本 phase **不修 web**（native UI 有自己的對話框，不受影響）；
 > 是否給 web 補回輸入是**獨立議題**，等用戶指示。
 
 ### 2.5 引擎方法對照（實作時的捷徑）

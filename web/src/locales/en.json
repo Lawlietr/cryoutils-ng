@@ -1,11 +1,5 @@
 {
   "_label": "English",
-  "header": {
-    "locked": "🔒 Locked",
-    "unlocked": "🔓 Unlocked",
-    "sudoPassword": "sudo password",
-    "unlock": "Unlock"
-  },
   "status": {
     "title": "System Status",
     "swapFile": "Swap File",

@@ -41,7 +41,7 @@
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
 - **Native Fyne UI（Phase 6.5）**：第二種 UI 路徑（`-ui native`）；**dark theme**、同樣單頁直式版面、嵌入 Noto Sans TC、**runtime drop-in 語言切換**（`~/.cryoutils_ng/locales/*.json` 免重編）。詳見 `docs/fyne-ui-plan.md`。
 - **sudo（native）**：首啟 / 失敗密碼對話框；密碼只存 `e.Password`（記憶體），**不落磁碟**。
-- **sudo（web，既有缺口）**：P0.5 移除密碼輸入後 `POST /api/auth` 仍在但 UI 不再呼叫 → 非 root web 模式 `e.Password` 恒空、`RenewAuth()` 失敗。Phase 6.5 不修 web（native 有自己對話框）；是否補回 web 輸入是獨立議題。
+- **sudo（web，已知缺口）**：P0.5 已完成：密碼輸入 UI 與 `POST /api/auth` 端點皆已移除 → web 模式 `e.Password` 恒空：以 root 執行時無影響（`RenewAuth()` 走 `Geteuid` 跳過）；非 root web 模式需權限的操作會失敗。主要路徑是 native UI（有密碼對話框）；是否補回 web 輸入是獨立議題。
 
 ## Desktop UI Launch (Decision — 方案 D)
 - **使用環境**:UI 主要在 Steam Deck **Desktop Mode** 使用(Gaming Mode 非主要;但 fallback 鏈對兩種 mode 都適用)。
@@ -88,8 +88,7 @@ Project name confirmed: **CryoUtils NG**.
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
 - **Permissions**: tweaks need sudo; `core/sudo.go` handles auth:
   - CLI 以 `sudo` 執行時（`os.Geteuid() == 0`）：直接跳過 `RenewAuth()`
-  - Web UI 執行時（deck 使用者）：`RenewAuth()` 使用儲存的密碼 → `sudo -S -k -- echo`（`-k` forces cache invalidation）
-  - Web UI 已移除密碼輸入，所有操作直接執行（token 提供 API 安全層）（注意：此造成 web 模式 `e.Password` 恒空的既有缺口，見下）
+  - Web UI 執行時：密碼輸入已移除（P0.5 完成，含 `/api/auth` 端點），`e.Password` 恒空；以 root 執行時正常（`Geteuid` 跳過），非 root web 模式需權限操作會失敗（已知缺口，見 Known Issues）
   - Fyne 原生 UI 執行時（deck 使用者）：首啟 / 失敗對話框取得密碼 → `e.Password`（只存記憶體，不落磁碟）；`RenewAuth()` 失敗時重彈
 
 ## Dependencies (modernized)
@@ -108,12 +107,12 @@ Project name confirmed: **CryoUtils NG**.
 ## Known Issues & Fixes
 - **`.gitignore` 遺漏 `node_modules/`**（2025-07-17，已修正）：`.gitignore` 缺少 `node_modules/` 與 `web/test-results/` 規則，導致 3707 筆 `web/node_modules/` + 1 筆測試結果檔案被錯誤追蹤並 commit。修正方式：在 `.gitignore` 加入 `node_modules/` 與 `web/test-results/`，執行 `git rm -r --cached web/node_modules web/test-results` 移除追蹤。此問題已記錄於 Working Rules 的 Git 規範中。
 - **Sudo cached timestamp bypass** (`core/sudo.go`): `sudo -S` 有 cached timestamp 時會忽略 stdin 密碼導致 `TestAuth` 永遠通過。修正：所有 `sudo` 指令加 `-k` flag 強制忘記 cache，`RenewAuth()` 回傳 `error` 並檢查空密碼。
-- **CLI sudo 執行時 RenewAuth 失敗** (`core/sudo.go`): CLI 以 `sudo` 執行時 `e.Password == ""`，`RenewAuth()` 因檢查空密碼而失敗，但實際操作會成功（已是 root）。修正：`RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接跳過。
-- **Web UI 密碼層多餘** (`web/src/App.tsx`): Steam Deck 環境預設信任同機使用者，token 已提供 API 安全。修正：移除密碼輸入 UI 與 `sudoLocked` 狀態。
+- **CLI sudo 執行時 RenewAuth 失敗** (`core/sudo.go`): CLI 以 `sudo` 執行時 `e.Password == ""`，`RenewAuth()` 因檢查空密碼而失敗，但實際操作會成功（已是 root）。**已修正（P0.5）**：`RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接回傳 `nil`。
+- **Web UI 密碼層多餘** (`web/src/App.tsx`): Steam Deck 環境預設信任同機使用者，token 已提供 API 安全。**已修正（P0.5）**：移除密碼輸入 UI、`sudoLocked` 狀態與全部 `disabled={sudoLocked}` 條件，並同步移除 `web/src/api.ts` 的 `auth()`、`cmd/desktop/api.go` 的 `/api/auth` 端點、相關 CSS 與 locale 鍵。
 - **Swap file location bug** (`core/swap.go`): `/proc/swaps` 遇到 `/dev/zram0` 時應 `continue` 跳過，而非 `return error`。修正後正確讀取 `/home/swapfile`。
 - **Log directory auto-creation** (`cmd/cryoutilities/main.go` + `cmd/desktop/main.go`): 啟動時自動 `os.MkdirAll(core.InstallDirectory, 0755)` 建立目錄，避免 `sudo` 下 `os.UserHomeDir()` 回傳 `/root` 時找不到 log 檔。
 - **Status command stdout** (`cmd/cryoutilities/main.go`): `printStatus()` 新增 `fmt.Printf` 輸出到 stdout，log 檔仍保留 `InfoLog` 輸出。
-- **Web 模式 sudo 入口缺失**（P0.5 起，既有）：Web UI 移除密碼輸入後 `POST /api/auth` 仍在 `cmd/desktop/api.go` 但不再被呼叫；非 root web 模式 `e.Password` 恒空 → `RenewAuth()` 失敗（需權限的操作會報錯）。Fyne 原生 UI（Phase 6.5）有自己的首啟/失敗密碼對話框，不受影響；是否補回 web 入口是獨立議題。
+- **Web 模式 sudo 入口缺口**（已知缺口）：P0.5 移除密碼輸入 UI，`POST /api/auth` 端點也已刪除；web 模式 `e.Password` 恒空 → **非 root web 模式** `RenewAuth()` 失敗（需權限的操作會報錯）；web 以 root 執行時無影響（`Geteuid` 跳過）。Fyne 原生 UI（Phase 6.5）有自己的首啟/失敗密碼對話框，不受影響；是否補回 web 入口是獨立議題。
 - **ZRAM 支援** (`core/swap.go`): SteamOS 3.6+ 使用 zram swap（`/dev/zram0`）與 swap file 並存。`ChangeSwapSize()` 執行 `swapoff -a` 後會主動重新啟用 zram（`swapon /dev/zram0`），避免等待 systemd 裝置掃描（約 18 分鐘）。`GetZramStatus()` 讀取 `/proc/swaps`，`GetZramSizeBytes()` 讀取 `/sys/block/zram0/disksize`，`getTotalSwapGB()` 從 `/proc/meminfo` 的 `SwapTotal` 計算總 swap（zram + swap file）。
 
 ## Testing & Verification
@@ -132,7 +131,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 5**: packaging (install.sh, .desktop, launcher.sh, uninstall.sh) ✅
 - **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
 - **Phase 5.6**: i18n 多國語言支援 + 版本號 `v2.2.2` → `v0.1.0` ✅ — 自訂輕量 i18n hook（Context + JSON），單一來源 `locales.ts`，零程式碼變更新增語言
-- **Phase 6**: verification (user — requires real Steam Deck)
+- **Phase 6**: 統合真機驗證（重排到 Phase 6.5 完成後執行；含 P0 zram、CLI 全命令、web fallback、native 驗收，見 `todo.md`）
 - **Phase 6.5**: Fyne 原生 UI（新）— 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`（進行中）
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
