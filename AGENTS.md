@@ -26,9 +26,11 @@
 ## Architecture & Structure
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
 - **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`. Published via GitHub Releases.
-- **`cmd/desktop`**: localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build. Binary name: `cryoutils-ng-desktop`. Not published via Releases — users build from source per README instructions.
+- **`cmd/desktop`**: `-ui web|native`（預設 `web`，Phase 6.5 起）：web 模式 = localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build；native 模式 = Fyne 原生 UI 直接 in-process 跑 `core.Engine`（無 HTTP/token/瀏覽器）。Binary name: `cryoutils-ng-desktop`（Phase 6.5 起需 `CGO_ENABLED=1`）。Not published via Releases — users build from source per README instructions.
+- **`ui/fyneui`**: 新 Fyne 原生 UI（Phase 6.5）— dark theme、單頁直式無 tab、與 web UI 六區塊同等、嵌入 Noto Sans TC、runtime drop-in 語言。詳見 `docs/fyne-ui-plan.md`。
+- **`i18n`**: locale 單一來源（Phase 6.5）— `//go:embed i18n/locales/*.json` + runtime `~/.cryoutils_ng/locales/` 掃描覆蓋（免重編）；`web/src/locales/` 為生成物（`npm run sync-loc`）。
 - **`web/`**: React + Vite + TypeScript **single-page** UI (no tabs). Vertical single column; all settings + statuses on one view. Plain CSS, framework-agnostic components (reusable by Decky plugin later).
-- **`internal/`**: legacy Fyne UI — **ready for deletion** (Phase 4 complete); retained only to avoid breaking root module `go build ./...` until packaging is done.
+- **`internal/`**: legacy Fyne UI — **Phase 6.5 待刪**（新 Fyne UI 通過真實 Deck 接受後，單獨 commit 移除）；移除前它是 Fyne 版本升級的編譯基準（v2.3.1 可編）。詳見 `docs/fyne-ui-plan.md`。
 
 ## UI Design Decisions (locked)
 - **Single page, vertical single column** — no tabs (original's tabs deemed redundant).
@@ -37,6 +39,9 @@
 - **VRAM section is read-only** (actual VRAM change is via BIOS).
 - Long tasks (swap resize) show a top-of-page progress bar via SSE, never lost on scroll.
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
+- **Native Fyne UI（Phase 6.5）**：第二種 UI 路徑（`-ui native`）；**dark theme**、同樣單頁直式版面、嵌入 Noto Sans TC、**runtime drop-in 語言切換**（`~/.cryoutils_ng/locales/*.json` 免重編）。詳見 `docs/fyne-ui-plan.md`。
+- **sudo（native）**：首啟 / 失敗密碼對話框；密碼只存 `e.Password`（記憶體），**不落磁碟**。
+- **sudo（web，既有缺口）**：P0.5 移除密碼輸入後 `POST /api/auth` 仍在但 UI 不再呼叫 → 非 root web 模式 `e.Password` 恒空、`RenewAuth()` 失敗。Phase 6.5 不修 web（native 有自己對話框）；是否補回 web 輸入是獨立議題。
 
 ## Desktop UI Launch (Decision — 方案 D)
 - **使用環境**:UI 主要在 Steam Deck **Desktop Mode** 使用(Gaming Mode 非主要;但 fallback 鏈對兩種 mode 都適用)。
@@ -45,10 +50,11 @@
 - **Flags**:`-no-browser`(只印 URL,不開視窗)、`-browser <path>`(強制指定瀏覽器)。
 - **不採用(已評估)**:
   - WebView 內嵌(Wails/webview/webkit2gtk):Stock SteamOS 無 webkit2gtk(Valve issue #1851)且 rootfs 唯讀,依賴安裝不可行;需 CGO。
-  - Fyne/Gio 原生 UI:dev VM 無 GPU 無法驗證;丟失 React UI 與 Phase 7 Decky 重用。
+  - Fyne/Gio 原生 UI:dev VM 無 GPU 無法驗證;丟失 React UI 與 Phase 7 Decky 重用。(Phase 6.5 後已重估:Fyne 原生 UI 正式採用,見下)。
   - Electron/CEF:二進位 100MB+ 過重。
-- **保持**:`CGO_ENABLED=0` 靜態單檔、token 安全、React UI 供 Decky 重用。
+- **保持**:CLI `CGO_ENABLED=0` 靜態單檔、token 安全、React UI 供 Decky 重用。
 - **範圍外**:單實例鎖、Firefox 支援(走 xdg-open fallback)。
+- **2026-08 補充(Phase 6.5)**:真實 Deck 驗證 `--app=` 失敗(拒絕連線,見 todo.md Deck 測試結果)→ 新增 **Fyne 原生 UI** 為主要使用路徑(`-ui native`,施工手冊 `docs/fyne-ui-plan.md`);web 模式保留供 Decky(Phase 7)+ fallback。`-ui` 預設值待 native 通過 Deck 接受後才切 `native`。
 
 ## Naming (confirmed)
 Project name confirmed: **CryoUtils NG**.
@@ -74,21 +80,23 @@ Project name confirmed: **CryoUtils NG**.
 
 ## Key Commands
 - **Build CLI**: `cd cmd/cryoutilities && CGO_ENABLED=0 go build -o cryoutils-ng .`
-- **Build desktop server**: `cd web && npm ci && npm run build` then `cp -r web/dist cmd/desktop/web/dist` then `cd ../cmd/desktop && CGO_ENABLED=0 go build -o cryoutils-ng-desktop .`
+- **Build desktop（Phase 6.5 起,Fyne 需 CGO）**: `cd web && npm ci && npm run build` then `cp -r web/dist cmd/desktop/web/dist` then `cd ../cmd/desktop && CGO_ENABLED=1 go build -o cryoutils-ng-desktop .`
 - **Build web UI**: `cd web && npm ci && npm run build`
 - **Test**: `cd core && CGO_ENABLED=0 go test ./...` · `cd core && CGO_ENABLED=0 go vet ./...` · `cd cmd/desktop && CGO_ENABLED=0 go vet ./...`
-- **Note**: `go build ./...` and `go vet ./...` at repo root fail due to Fyne GL dependency in `internal/` (no GPU in dev env); build each module separately.
+- **Note**: Phase 6.5 起 root module `go build ./...` / `go vet ./...` 需 `CGO_ENABLED=1`（Fyne：`ui/fyneui/` + legacy `internal/`）；`core/` 與 CLI 維持 `CGO_ENABLED=0` 建置/測試。Headless 驗證：`Xvfb` + `scrot`（見 `docs/fyne-ui-plan.md` §5）。
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
 - **Permissions**: tweaks need sudo; `core/sudo.go` handles auth:
   - CLI 以 `sudo` 執行時（`os.Geteuid() == 0`）：直接跳過 `RenewAuth()`
   - Web UI 執行時（deck 使用者）：`RenewAuth()` 使用儲存的密碼 → `sudo -S -k -- echo`（`-k` forces cache invalidation）
-  - Web UI 已移除密碼輸入，所有操作直接執行（token 提供 API 安全層）
+  - Web UI 已移除密碼輸入，所有操作直接執行（token 提供 API 安全層）（注意：此造成 web 模式 `e.Password` 恒空的既有缺口，見下）
+  - Fyne 原生 UI 執行時（deck 使用者）：首啟 / 失敗對話框取得密碼 → `e.Password`（只存記憶體，不落磁碟）；`RenewAuth()` 失敗時重彈
 
 ## Dependencies (modernized)
 - **Kept + updated**: `golang.org/x/sys@v0.47.0`, `mountinfo@v0.7.2`, `otiai10/copy@v1.14.1`, `acmd@v0.12.0`, `vdf@v1.1.0` (already latest)
 - **Removed**: `fyne.io/fyne/v2` and its entire stale indirect tree (glfw, gopherjs, gl-js, oksvg, rasterx, textlayout, freetype, systray, x/mobile, x/image, x/net, x/text, fsnotify) — most pinned 2021–2022
 - **Go directive**: `go 1.26` in `core/go.mod`
+- **Root module（Phase 6.5）**: `fyne.io/fyne/v2` v2.3.1 → **v2.7.4**（新 Fyne 原生 UI；v2.8.0 為 PoC 後可選評估）。`internal/` 刪除後 Fyne 仍留在 root module（`ui/fyneui/` 在用）。
 
 ## Important Constraints & Quirks
 - **Swap Files**: only supports swap files, not swap partitions.
@@ -105,6 +113,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Swap file location bug** (`core/swap.go`): `/proc/swaps` 遇到 `/dev/zram0` 時應 `continue` 跳過，而非 `return error`。修正後正確讀取 `/home/swapfile`。
 - **Log directory auto-creation** (`cmd/cryoutilities/main.go` + `cmd/desktop/main.go`): 啟動時自動 `os.MkdirAll(core.InstallDirectory, 0755)` 建立目錄，避免 `sudo` 下 `os.UserHomeDir()` 回傳 `/root` 時找不到 log 檔。
 - **Status command stdout** (`cmd/cryoutilities/main.go`): `printStatus()` 新增 `fmt.Printf` 輸出到 stdout，log 檔仍保留 `InfoLog` 輸出。
+- **Web 模式 sudo 入口缺失**（P0.5 起，既有）：Web UI 移除密碼輸入後 `POST /api/auth` 仍在 `cmd/desktop/api.go` 但不再被呼叫；非 root web 模式 `e.Password` 恒空 → `RenewAuth()` 失敗（需權限的操作會報錯）。Fyne 原生 UI（Phase 6.5）有自己的首啟/失敗密碼對話框，不受影響；是否補回 web 入口是獨立議題。
 - **ZRAM 支援** (`core/swap.go`): SteamOS 3.6+ 使用 zram swap（`/dev/zram0`）與 swap file 並存。`ChangeSwapSize()` 執行 `swapoff -a` 後會主動重新啟用 zram（`swapon /dev/zram0`），避免等待 systemd 裝置掃描（約 18 分鐘）。`GetZramStatus()` 讀取 `/proc/swaps`，`GetZramSizeBytes()` 讀取 `/sys/block/zram0/disksize`，`getTotalSwapGB()` 從 `/proc/meminfo` 的 `SwapTotal` 計算總 swap（zram + swap file）。
 
 ## Testing & Verification
@@ -124,13 +133,14 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
 - **Phase 5.6**: i18n 多國語言支援 + 版本號 `v2.2.2` → `v0.1.0` ✅ — 自訂輕量 i18n hook（Context + JSON），單一來源 `locales.ts`，零程式碼變更新增語言
 - **Phase 6**: verification (user — requires real Steam Deck)
+- **Phase 6.5**: Fyne 原生 UI（新）— 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`（進行中）
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
 ## License & Usage Rights
 - **License**: GNU General Public License v3.0 (GPLv3) — inherited from the original CryoUtilities project.
 - **Derivative Work**: this is a derivative work; must retain original copyright notices/license declarations, be distributed under GPLv3 (or compatible), and provide complete source code to recipients.
 - **What You Cannot Do**: incorporate into proprietary/closed-source software; remove or alter the GPLv3 license terms.
-- **UI Rewrite Intent**: core logic (handlers/config/utilities) preserved and rewritten in Go; UI rewritten independently (single-page web, different design from original Fyne tabs).
+- **UI Rewrite Intent**: core logic (handlers/config/utilities) preserved and rewritten in Go; UI rewritten independently (single-page web, 加上新單頁 Fyne 原生 UI（Phase 6.5）；兩者皆與原 5-tab Fyne UI 設計不同)。
 
 ## Attribution & Documentation
 - **Original Project**: CryoUtilities by CryoByte33 (unmaintained 1+ year) — this is a **rewrite** that honors and continues the original work.

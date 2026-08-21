@@ -89,5 +89,8 @@ node_modules/
 # Test results
 web/test-results/
 
+# Locales (generated from i18n/locales/ via `npm run sync-loc`, Phase 6.5)
+web/src/locales/
+
 # Local docs
 /docs/zram-howto.md
