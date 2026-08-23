@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"cryoutils-ng/core"
+	"cryoutils-ng/ui/fyneui"
 )
 
 const bindAddr = "127.0.0.1"
@@ -51,6 +52,22 @@ func main() {
 	// Create engine
 	e := core.NewEngine(logFile, logFile)
 	e.InfoLog.Println("Current Version:", core.CurrentVersionNumber)
+
+	// Parse CLI flags before doing any UI work
+	var uiMode string
+	var noBrowser bool
+	var overrideBrowser string
+	flag.StringVar(&uiMode, "ui", "web", "UI mode: web or native")
+	flag.BoolVar(&noBrowser, "no-browser", false, "Only print the URL, do not open a browser")
+	flag.StringVar(&overrideBrowser, "browser", "", "Force use of a specific browser path (e.g. /usr/bin/chromium)")
+	flag.Parse()
+
+	if uiMode == "native" {
+		fyneui.Run(e)
+		return
+	}
+
+	// ── Web mode (default) ──
 
 	// Generate random token
 	token, err := generateToken()
@@ -92,13 +109,6 @@ func main() {
 
 	e.InfoLog.Println("Starting desktop server on", url)
 	fmt.Println(url)
-
-	// Parse CLI flags for browser control
-	var noBrowser bool
-	var overrideBrowser string
-	flag.BoolVar(&noBrowser, "no-browser", false, "Only print the URL, do not open a browser")
-	flag.StringVar(&overrideBrowser, "browser", "", "Force use of a specific browser path (e.g. /usr/bin/chromium)")
-	flag.Parse()
 
 	// Open browser using the fallback chain (app-window → flatpak → steam → xdg-open)
 	go func() {
