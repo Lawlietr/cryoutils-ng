@@ -75,6 +75,7 @@ fyne-cross/*
 .idea
 .idea/*
 cryoutilities.log
+cryoutils_ng.log
 /Dockerfile
 /build
 
