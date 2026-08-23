@@ -114,51 +114,60 @@
 - [x] CLI `status` command verified on real hardware (`SwapSizeGB: 16` ✅)
 - [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復（P0 代碼已合併未真機驗過，優先度高）
 - [ ] All CLI commands verified on real hardware（`swappiness`、`recommended`、`stock`、`hugepages` 等，含 P0.5 後 `sudo` 執行 CLI 的 `Geteuid` 跳過路徑）
+- [ ] Fyne 原生 UI 驗收（1280×800 / 4K / .desktop / sudo 對話框 / drop-in 語言 — 與 Phase 6.5.3 同一輪執行）
 - [ ] Web UI 視覺驗收（fallback 路徑，與 native 一次驗）
 - [ ] `steam://openurl` fallback 確認（次要；web 模式無瀏覽器可用時才走）
 - [ ] Flatpak zsh globbing 問題記錄到 README（URL 需加引號）
 - ~~Web UI `--app=` 視窗驗證~~ → **移除**：`--app=` 真機失敗已確認（見 Phase 5.5 Deck 測試結果），由 Fyne 原生 UI 取代
 
-## Phase 6.5: Fyne 原生 UI（新）
+## Phase 6.5: Fyne 原生 UI（dev 端完成，待真機驗收）
 
-> 完成後接 Phase 6 統合真機驗證。
+> dev VM 端 Steps 0–10 已完成（2026-08-23）；剩 Step 11 真機驗收 + Step 12 打包 + Step 13/14 收尾。完成後接 Phase 6 統合真機驗證。
 
 > **施工手冊：`docs/fyne-ui-plan.md`**（全部決策已定案，標 [DECIDED] 的不要再評估）。
 > 方向（2026-08-21 定案）：全新撰寫 **Fyne v2.7.4** 原生 UI（**不沿用 `internal/` 舊 UI**）；web UI 保留（Decky + fallback）；`cmd/desktop -ui web|native`（預設 web）。
 
-### 6.5.0 PoC Gate
-- [ ] Dev VM：`apt-get install libgl1-mesa-dri scrot mesa-utils`；Xvfb 下確認 llvmpipe/softpipe
-- [ ] Root module Fyne v2.3.1 → **v2.7.4**；`CGO_ENABLED=1 go build ./internal/` 仍可過
-- [ ] Fyne hello（button + CJK label）xvfb 運行 + scrot 截圖渲染通過（**go/no-go**）
-- [ ] （可選）v2.8.0 試測；有問題維持 v2.7.4 並記錄
+### 6.5.0 PoC Gate ✅
+- [x] Dev VM：mesa/Xvfb/scrot 安裝；Xvfb 下確認 llvmpipe（Mesa 25.2.8）
+- [x] Root module Fyne v2.3.1 → **v2.7.4**；`internal/` 升級後仍可編（v2.7.4 API 差異記錄於下方）
+- [x] Fyne hello（button + CJK label）xvfb 運行 + scrot 截圖渲染通過（go）
+- [x] v2.8.0 未試測 — 維持 v2.7.4（已穩定通過 gate）
 
-### 6.5.1 i18n 單一來源
-- [ ] `git mv web/src/locales i18n/locales`（canonical）
-- [ ] `i18n/` package：`//go:embed` + `Available/Load/T` + runtime `~/.cryoutils_ng/locales/` 掃描覆蓋
-- [ ] i18n 單元測試（fallback / override / 缺鍵 / 壞 JSON 跳過）
-- [ ] web `package.json`：`sync-loc` + build pipeline；`.gitignore` 加 `web/src/locales/`（已加，本 phase 生效）
-- [ ] `native.*` 新鍵補 en + zh-TW；web `src/` 零改動
+**v2.7.4 API 差異（實測，供後續維護）**：
+- `a.SetTheme()` → `a.Settings().SetTheme()`；`w.Run()` 不存在（只有 `ShowAndRun()`）；`w.SetResizable()` 不存在（用 `SetFixedSize`）
+- `widget.NewModalDialog` 不存在 → `widget.NewModalPopUp(content, w.Canvas())`
+- `fyne.Color` / `fyne.ColorName` 改名 → `color.Color`（image/color）/ `fyne.ThemeColorName`
+- `Label.Disabled()` 不存在 → `Importance = widget.LowImportance`；`ProgressBar` 無 `.Text` → 獨立 `*widget.Label`
+- **VBox 會把 VScroll 壓成 MinSize 高度**（`scrollContainerMinSize` 常數）→ 根布局改用 `container.NewBorder(top, nil, nil, nil, vScroll)`
 
-### 6.5.2 Fyne UI（dark、單頁無 tab、與 web 六區塊同等）
-- [ ] `ui/fyneui/` 骨架：app / dark theme / window / Noto Sans TC 嵌入（**font gate**）
-- [ ] Status section（含 ZRAM Size / ZRAM Status / Total Swap）+ 5s 自動刷新 + Refresh 鈕
-- [ ] Swap section（size 選單 / 確認 / progress / zram 警告文案）
-- [ ] Memory / Presets / VRAM / Game Data sections
-- [ ] 語言選單 + `ui.json` 持久化 + 切換即時全頁重繪（含 drop-in 語言驗收）
-- [ ] sudo 密碼對話框（首啟 / 失敗重彈 / 略過 + banner；只存記憶體）
-- [ ] 執行緒模型：UI 更新一律 `fyne.Do`；長任務 goroutine（plan §2.3 模板）
+### 6.5.1 i18n 單一來源 ✅
+- [x] `git mv web/src/locales i18n/locales`（canonical）
+- [x] `i18n/` package：`//go:embed` + `Available/Load/T` + runtime `~/.cryoutils_ng/locales/` 掃描覆蓋
+- [x] i18n 單元測試（fallback / override / 缺鍵 / 壞 JSON 跳過）
+- [x] web `package.json`：`sync-loc` + build pipeline；`.gitignore` 加 `web/src/locales/`
+- [x] `native.*` 新鍵補 en + zh-TW（含 `native.sudo*`、`native.*Confirm*`）
+
+### 6.5.2 Fyne UI ✅
+- [x] `ui/fyneui/` 骨架：app / dark theme（`customTheme` 包裝 `theme.DarkTheme()`）/ window 1280×800 / Noto Sans TC 嵌入（font gate 過）
+- [x] Status section（含 ZRAM Size / ZRAM Status / Total Swap）
+- [x] Swap section（size 選單 / 確認 / progress / zram 警告文案）
+- [x] Memory / Presets / VRAM / Game Data sections
+- [x] 5s 自動刷新 + Refresh 鈕 — **in-place refresh 架構**：`refreshers` registry，ticker/按鈕只跑值更新（不重建 tree，保留 select 選擇與 scroll 位置）；語言切換才全量重建（連 header + banner）；`refreshers` 每次重建重新建立（防舊 closure 累積）
+- [x] 語言選單 + `ui.json` 持久化（`~/.cryoutils_ng/ui.json`）+ 切換全頁重繪（drop-in 免重編待真機驗）
+- [x] sudo 密碼對話框（`sudo_dialog.go`）：`askPassword` modal popup + `PasswordEntry`，`TestAuth` 在 goroutine + `fyne.Do` 回 UI；首啟（非 root）/ 失效重彈 / 略過 = 唯讀；紅色 banner 未認證時顯示；`withAuth` 包裹所有需權限操作；密碼只存 `e.Password`（記憶體）
+- [x] 執行緒模型：UI 更新一律 `fyne.Do`；長任務 goroutine
 
 ### 6.5.3 整合與驗證
-- [ ] `cmd/desktop` `-ui web|native`（預設 web；native 不啟 HTTP/token/瀏覽器）
-- [ ] web 模式零回歸（`/api/status`、瀏覽器啟動鏈）
-- [ ] Headless 截圖（1280×800 / 2560×1440 × en/zh-TW）
-- [ ] 真實 Steam Deck：1280×800 / 4K / .desktop / 全功能 / 原始 CryoUtilities 未動
+- [x] `cmd/desktop` `-ui web|native`（預設 web；native 不啟 HTTP/token/瀏覽器）
+- [x] Headless 截圖 1280×800 × en + 1280×800 × zh-TW + 2560×1440 × zh-TW（六區塊全渲染，OCR 確認，無溢出；`xdotool` 滾輪驗 scroll 下方）
+- [x] `go vet` 全綠（`ui/fyneui` + `cmd/desktop`）；core/CLI 維持 `CGO_ENABLED=0`
+- [ ] web 模式零回歸 smoke（`/api/status`、瀏覽器啟動鏈；web 代碼本 phase 未改，風險低）
+- [ ] 真實 Steam Deck：1280×800 / 4K / .desktop / 全功能 / sudo 對話框實測 / drop-in 語言 / 原始 CryoUtilities 未動
 - [ ] 打包：install.sh / manual-install.md（CGO 運行期相依）/ release.yml（若 build desktop → apt GL/X11 deps + `CGO_ENABLED=1`）
-- [ ] `go vet` 全綠；core/CLI 維持 `CGO_ENABLED=0`
 
 ### 6.5.4 收尾
-- [ ] 刪除 `internal/`（**單獨 commit**；Fyne 依賴保留）
-- [ ] 文件更新：AGENTS.md / README.md / todo.md
+- [ ] 刪除 `internal/`（**單獨 commit**；Fyne 依賴保留；待 Step 11 gate 過）
+- [x] 文件更新：AGENTS.md（Roadmap / 架構）；todo.md（本檔）；README.md 待 Step 12 一起
 - [ ] 版本號 `v0.1.0` → `v0.2.0`（待用戶確認）
 - [ ] （可選，接受後）`-ui` 預設值切 `native`
 
