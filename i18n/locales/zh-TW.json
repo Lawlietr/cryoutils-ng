@@ -75,6 +75,7 @@
     "syncConfirmTitle": "同步遊戲資料",
     "syncConfirmMsg": "將遊戲資料從 SSD 遊戲庫同步至外接裝置？這可能需要一些時間。",
     "cleanupConfirmTitle": "清除孤兒資料",
-    "cleanupConfirmMsg": "清除外接裝置中的孤兒遊戲資料？此操作無法復原。"
+    "cleanupConfirmMsg": "清除外接裝置中的孤兒遊戲資料？此操作無法復原。",
+    "sudoAuthFailed": "密碼錯誤，請再試一次。"
   }
 }

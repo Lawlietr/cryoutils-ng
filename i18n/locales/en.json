@@ -75,6 +75,7 @@
     "syncConfirmTitle": "Sync Game Data",
     "syncConfirmMsg": "Sync game data from SSD library to external library? This may take a while.",
     "cleanupConfirmTitle": "Cleanup Orphaned Data",
-    "cleanupConfirmMsg": "Remove orphaned game data from external library? This cannot be undone."
+    "cleanupConfirmMsg": "Remove orphaned game data from external library? This cannot be undone.",
+    "sudoAuthFailed": "Incorrect password. Please try again."
   }
 }

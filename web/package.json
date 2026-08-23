@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && (mkdir -p dist/locales && cp src/locales/*.json dist/locales/)",
+    "sync-loc": "cp ../i18n/locales/*.json src/locales/",
+    "build": "npm run sync-loc && tsc && vite build && (mkdir -p dist/locales && cp src/locales/*.json dist/locales/)",
     "preview": "vite preview"
   },
   "dependencies": {
