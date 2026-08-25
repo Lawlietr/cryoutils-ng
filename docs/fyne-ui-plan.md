@@ -5,6 +5,8 @@
 > 撰寫基礎：2026-08 Dev VM 實地偵察結果（環境、API、檔案結構皆以 repo 現況為準）。
 > **禁止自行 commit/push**（AGENTS.md 工作規則）。
 
+> **進度（2026-08-23）**：Steps 0–10 已完成（Fyne v2.7.4、i18n、`ui/fyneui/` 六區塊、sudo 對話框、headless 截圖通過）。實作與本手冊的已知偏差記錄在 `todo.md` Phase 6.5（VBox→Border 根布局、`widget.NewModalPopUp`、in-place refreshers 架構）。剩 Steps 11–14。
+
 ---
 
 ## 0. 最終決策（先讀這一段）

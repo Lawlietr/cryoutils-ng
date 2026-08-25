@@ -27,7 +27,7 @@
 - **`core/`**: UI-independent Go engine (single source of truth for all tuning logic). `core.Engine` struct (loggers, sudo password, `OnProgress` callback) replaces the old global `CryoUtils`. No Fyne, no CGO (`CGO_ENABLED=0` static binary).
 - **`cmd/cryoutilities`**: CLI. All original subcommands + new `status` command (scripting interface for the future Decky backend). Binary name: `cryoutils-ng`. Published via GitHub Releases.
 - **`cmd/desktop`**: `-ui web|native`（預設 `web`，Phase 6.5 起）：web 模式 = localhost web server (127.0.0.1 + random token), REST API, SSE progress, `go:embed` of the web build；native 模式 = Fyne 原生 UI 直接 in-process 跑 `core.Engine`（無 HTTP/token/瀏覽器）。Binary name: `cryoutils-ng-desktop`（Phase 6.5 起需 `CGO_ENABLED=1`）。Not published via Releases — users build from source per README instructions.
-- **`ui/fyneui`**: 新 Fyne 原生 UI（Phase 6.5）— dark theme、單頁直式無 tab、與 web UI 六區塊同等、嵌入 Noto Sans TC、runtime drop-in 語言。詳見 `docs/fyne-ui-plan.md`。
+- **`ui/fyneui`**: Fyne 原生 UI（Phase 6.5）— dark theme、單頁直式無 tab、與 web UI 六區塊同等、嵌入 Noto Sans TC、runtime drop-in 語言。根布局用 `container.NewBorder(top, nil, nil, nil, vScroll)`（**不可用 VBox 包 VScroll** — VBox 會把 Scroll 壓成 MinSize 常數高度）；5s ticker/Refresh 走 `refreshers` registry 做 in-place 值更新（不重建 tree，保留用戶選擇與 scroll 位置），只有語言切換才全量重建；sudo 密碼對話框在 `sudo_dialog.go`（`widget.NewModalPopUp`，v2.7.4 無 `NewModalDialog`）。詳見 `docs/fyne-ui-plan.md`。
 - **`i18n`**: locale 單一來源（Phase 6.5）— `//go:embed i18n/locales/*.json` + runtime `~/.cryoutils_ng/locales/` 掃描覆蓋（免重編）；`web/src/locales/` 為生成物（`npm run sync-loc`）。
 - **`web/`**: React + Vite + TypeScript **single-page** UI (no tabs). Vertical single column; all settings + statuses on one view. Plain CSS, framework-agnostic components (reusable by Decky plugin later).
 - **`internal/`**: legacy Fyne UI — **Phase 6.5 待刪**（新 Fyne UI 通過真實 Deck 接受後，單獨 commit 移除）；移除前它是 Fyne 版本升級的編譯基準（v2.3.1 可編）。詳見 `docs/fyne-ui-plan.md`。
@@ -132,7 +132,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
 - **Phase 5.6**: i18n 多國語言支援 + 版本號 `v2.2.2` → `v0.1.0` ✅ — 自訂輕量 i18n hook（Context + JSON），單一來源 `locales.ts`，零程式碼變更新增語言
 - **Phase 6**: 統合真機驗證（重排到 Phase 6.5 完成後執行；含 P0 zram、CLI 全命令、web fallback、native 驗收，見 `todo.md`）
-- **Phase 6.5**: Fyne 原生 UI（新）— 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`（進行中）
+- **Phase 6.5**: Fyne 原生 UI — 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`。**dev 端完成（2026-08-23）**：Fyne v2.7.4、i18n 單一來源、六區塊 + in-place refresh、headless 截圖通過（1280×800 / 2560×1440 × en/zh-TW）；剩真機驗收（Step 11）、打包（Step 12）、`internal/` 刪除（Step 13，單獨 commit）
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
 ## License & Usage Rights
