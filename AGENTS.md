@@ -82,7 +82,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Build CLI**: `cd cmd/cryoutilities && CGO_ENABLED=0 go build -o cryoutils-ng .`
 - **Build desktop（Phase 6.5 起,Fyne 需 CGO）**: `cd web && npm ci && npm run build` then `cp -r web/dist cmd/desktop/web/dist` then `cd ../cmd/desktop && CGO_ENABLED=1 go build -o cryoutils-ng-desktop .`
 - **Build web UI**: `cd web && npm ci && npm run build`
-- **Test**: `cd core && CGO_ENABLED=0 go test ./...` · `cd core && CGO_ENABLED=0 go vet ./...` · `cd cmd/desktop && CGO_ENABLED=0 go vet ./...`
+- **Test**: `cd core && CGO_ENABLED=0 go test ./...` · `cd core && CGO_ENABLED=0 go vet ./...` · `cd cmd/desktop && CGO_ENABLED=1 go vet ./...`
 - **Note**: Phase 6.5 起 root module `go build ./...` / `go vet ./...` 需 `CGO_ENABLED=1`（Fyne：`ui/fyneui/` + legacy `internal/`）；`core/` 與 CLI 維持 `CGO_ENABLED=0` 建置/測試。Headless 驗證：`Xvfb` + `scrot`（見 `docs/fyne-ui-plan.md` §5）。
 - **Run server (dev)**: `go run ./cmd/desktop` → opens `http://127.0.0.1:<port>/?token=...`
 - **CLI (target)**: `sudo ~/.cryoutils_ng/cryoutils-ng <command> [parameter]`
@@ -132,7 +132,7 @@ Project name confirmed: **CryoUtils NG**.
 - **Phase 5.5**: desktop UI launch — chromeless app window (方案 D, see above) ✅
 - **Phase 5.6**: i18n 多國語言支援 + 版本號 `v2.2.2` → `v0.1.0` ✅ — 自訂輕量 i18n hook（Context + JSON），單一來源 `locales.ts`，零程式碼變更新增語言
 - **Phase 6**: 統合真機驗證（重排到 Phase 6.5 完成後執行；含 P0 zram、CLI 全命令、web fallback、native 驗收，見 `todo.md`）
-- **Phase 6.5**: Fyne 原生 UI — 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`。**dev 端完成（2026-08-23）**：Fyne v2.7.4、i18n 單一來源、六區塊 + in-place refresh、headless 截圖通過（1280×800 / 2560×1440 × en/zh-TW）；剩真機驗收（Step 11）、打包（Step 12）、`internal/` 刪除（Step 13，單獨 commit）
+- **Phase 6.5**: Fyne 原生 UI — 全新 `ui/fyneui/`（dark、單頁、i18n drop-in、sudo 對話框）+ `-ui web|native`；施工手冊 `docs/fyne-ui-plan.md`。**dev 端完成（2026-08-25）**：Fyne v2.7.4、i18n 單一來源、六區塊 + in-place refresh、headless OCR 驗證通過（1280×800 × en/zh-TW，2560×1440 待測）；剩真機驗收（Step 11）、打包（Step 12）、`internal/` 刪除（Step 13，單獨 commit）
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
 ## License & Usage Rights

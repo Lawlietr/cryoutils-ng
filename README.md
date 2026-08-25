@@ -23,6 +23,7 @@ A Steam Deck utility to manage swap files, swappiness, and memory parameters —
     * Delete the shadercache and compatdata for all uninstalled games with a single click
 * Full CLI mode
 * Web UI (desktop mode)
+* Native Fyne UI (desktop mode, `-ui native`)
 
 ## Install
 
@@ -42,9 +43,20 @@ See [manual-install.md](docs/manual-install.md).
 
 ### GUI (Desktop Mode)
 
-After installation, double-click the "CryoUtils NG" icon on the desktop or find it in the application menu under "Utilities". This launches the desktop web server and opens your browser automatically as a chromeless app window (`--new-window --app=<url>`).
+After installation, double-click the "CryoUtils NG" icon on the desktop or find it in the application menu under "Utilities". This launches the desktop server and opens your browser automatically as a chromeless app window (`--new-window --app=<url>`).
 
 The web UI runs on `127.0.0.1` with a per-launch random token. No network exposure — it only listens on localhost.
+
+#### Native Fyne UI (recommended for Steam Deck)
+
+The native Fyne UI (`-ui native`) renders directly without a browser — no HTTP server, no token, no browser dependency. It is the recommended path for Steam Deck Desktop Mode.
+
+```bash
+# Launch native Fyne UI directly
+cryoutils-ng-desktop -ui native
+```
+
+The native UI uses the same `core.Engine` as the CLI, with a sudo password dialog on first use (password stored in memory only, never written to disk).
 
 #### Browser Launch Fallback Chain
 
@@ -57,10 +69,13 @@ The desktop server tries browsers in this order:
 #### CLI Flags
 
 ```bash
-# Print the URL without opening a browser
+# Launch native Fyne UI (no browser needed)
+cryoutils-ng-desktop -ui native
+
+# Print the URL without opening a browser (web mode)
 cryoutils-ng-desktop -no-browser
 
-# Force a specific browser path
+# Force a specific browser path (web mode)
 cryoutils-ng-desktop -browser /usr/bin/chromium
 ```
 
@@ -94,18 +109,23 @@ The desktop server binary is not distributed via GitHub Releases. To build it:
 # Build web UI first
 cd web && npm ci && npm run build
 
-# Build desktop server (static binary, no CGO)
-cd ..
-CGO_ENABLED=0 go build -o cryoutils-ng-desktop ./cmd/desktop
+# Copy web assets to desktop server embed path
+cp -r web/dist cmd/desktop/web/dist
+
+# Build desktop server (Fyne native UI requires CGO)
+cd ../cmd/desktop
+CGO_ENABLED=1 go build -o cryoutils-ng-desktop .
 ```
 
 Then run it directly:
 
 ```bash
+# Native Fyne UI (no browser needed)
+./cryoutils-ng-desktop -ui native
+
+# Web mode (opens browser)
 ./cryoutils-ng-desktop
 ```
-
-It will print a URL like `http://127.0.0.1:PORT/?token=TOKEN` — open that in your browser.
 
 Or use flags:
 
@@ -168,7 +188,7 @@ See [the tweak explanation page](docs/tweak-explanation.md).
 
 ## Attribution
 
-This project is a rewrite of [CryoUtilities](https://github.com/CryoByte33/steam-deck-utilities) by CryoByte33, which has been unmaintained since 2023. The core tuning logic is preserved and rewritten in Go; the UI is independently designed as a single-page web application.
+This project is a rewrite of [CryoUtilities](https://github.com/CryoByte33/steam-deck-utilities) by CryoByte33, which has been unmaintained since 2023. The core tuning logic is preserved and rewritten in Go; the UI includes a single-page web application and a native Fyne UI for Steam Deck.
 
 ## License
 

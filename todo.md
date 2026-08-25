@@ -158,7 +158,7 @@
 
 ### 6.5.4 收尾
 - [ ] 刪除 `internal/`（**單獨 commit**；Fyne 依賴保留）
-- [ ] 文件更新：AGENTS.md / README.md / todo.md
+- [x] 文件更新：AGENTS.md / README.md / todo.md
 - [ ] 版本號 `v0.1.0` → `v0.2.0`（待用戶確認）
 - [ ] （可選，接受後）`-ui` 預設值切 `native`
 
