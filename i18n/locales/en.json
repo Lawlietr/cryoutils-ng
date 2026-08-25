@@ -59,5 +59,22 @@
   },
   "common": {
     "loading": "Loading…"
+  },
+  "native": {
+    "sudoDialogTitle": "Administrator Password Required",
+    "sudoDialogPrompt": "Enter your password to allow system changes:",
+    "sudoDialogSkip": "Skip (read-only mode)",
+    "sudoDialogEnter": "Enter",
+    "sudoBanner": "⚠ Sudo access not configured. Operations requiring admin rights will fail.",
+    "langMenu": "Language",
+    "refreshBtn": "Refresh",
+    "resizeConfirmTitle": "Resize Swap File",
+    "resizeConfirmMsg": "This will temporarily disable swap (including ZRAM). The system may slow down during the resize. Continue?",
+    "presetConfirmTitle": "Apply Preset",
+    "presetConfirmMsg": "Apply this preset? This will change system memory parameters.",
+    "syncConfirmTitle": "Sync Game Data",
+    "syncConfirmMsg": "Sync game data from SSD library to external library? This may take a while.",
+    "cleanupConfirmTitle": "Cleanup Orphaned Data",
+    "cleanupConfirmMsg": "Remove orphaned game data from external library? This cannot be undone."
   }
 }

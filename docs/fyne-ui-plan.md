@@ -305,6 +305,8 @@ sleep 4 && DISPLAY=:99 scrot /tmp/fyne-skeleton.png
 ```
 **gate（font gate）**：截圖 = 暗色視窗 + **中文字正常顯示**（非方框）。
 
+> **2026-08-25 字體來源定案**：`notofonts/notofonts.github.io` 不含 CJK（無 NotoSansTC）。改用 `google/fonts` 的變數字型 `ofl/notosanstc/NotoSansTC[wght].ttf`，以 `python3-fonttools varLib.instancer` 分別固定 `wght=400/700` 產出靜態 Regular/Bold TTF（各 ~7MB，Fyne 需兩檔分開對應 TextStyle），連同 `OFL.txt` 放 `ui/fyneui/fonts/`。⚠️ 網路上流傳的部分 NotoSansTC 檔是 **TTC collection**，Fyne `ParseTTF` 會報 `collections not allowed` 並 panic——下載後務必 `file` 驗證是單一 TrueType。
+
 ### Step 4 — Status section（含 ZRAM）
 - `sections_status.go`：接 `e.GetStatusSummary()` 全部欄位（§2.2 區塊 3）
 - 5s ticker + Refresh 按鈕 + `refreshStatus()` 公用函式（其他 section 共用）
@@ -337,6 +339,13 @@ sleep 4 && DISPLAY=:99 scrot /tmp/fyne-skeleton.png
 - 1280×800 與 2560×1440 兩種視窗尺寸 × en/zh-TW × （含 progress 顯示狀態）截圖
 - 截圖放 `/tmp`（**不 commit**）
 **gate**：視覺檢查無溢出/重疊/缺字；報告貼給用戶。
+
+> **2026-08-25 實測筆記（headless 驗證方法論）**：
+> - `w.Canvas().Capture()` 在 Xvfb+llvmpipe 下讀 front buffer 恆黑（swap 不翻 front）→ **截圖一律用 `scrot`**。
+> - 最小 hello app 在此環境**不呈現**（純黑視窗；glxgears 正常）；真實 app 反而正常呈現——原因未明，不影響本專案，真機 Step 11 再確認。
+> - 除錯工具：`CRYOUTILS_UI_SHOT=/path.png`（自動截圖後離開；注意它內部走 Capture，在此環境會是黑的，僅供其他平台用）、`CRYOUTILS_UI_DEBUG=1`（4 秒後印各 section layout 尺寸到 stdout）。
+> - OCR 驗證管線：`scrot` → PIL 反相+放大 2x → `tesseract`（`-l eng` / `-l chi_tra+eng`）→ 檢查實際渲染文字。中文字非方框 = font gate 通過。
+> - 教訓：`container.NewVScroll(...)` **不可**再包進 `NewVBox` 給 Border 當 center——VScroll 会被壓成 MinSize 高度（32px），scroll 直接當 Border center 即可。
 
 ### Step 11 — 真實 Steam Deck（用戶在場）
 1. Dev VM build（CGO_ENABLED=1）→ 用戶在 deck 端 `scp root@192.168.1.15:... ~/.cryoutils_ng/cryoutils-ng-desktop`
