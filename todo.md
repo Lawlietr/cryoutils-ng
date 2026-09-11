@@ -162,6 +162,35 @@
 - [ ] 版本號 `v0.1.0` → `v0.2.0`（待用戶確認）
 - [ ] （可選，接受後）`-ui` 預設值切 `native`
 
+## Phase 6.6: Native UI 4K 適配與 sudo 流程修正（2026-09-11 真機 feedback）
+
+> 由來：真實 Deck 4K（3840×2160）測試 — 字太小、元件被拉滿 3840px 寬、sudo 密碼被問多次。
+> 施工順序（用戶確認 2026-09-11）：6.6.1 → 6.6.2 → 6.6.3 → 6.6.4。
+
+### 6.6.1 sudo 雙問修正（native）
+- [ ] 保留啟動密碼對話框（**用戶決策 2026-09-11**：部分狀態讀取走 `sudo cat`（`core/util.go`），非 root 時很多狀態看不到 → **不做** pure lazy 問密碼）
+- [ ] 防對話框疊開：`authManager` 加「同一時間只允許一個密碼對話框」flag（啟動對話框延遲 200ms，若用戶先點操作，`runTask → ensure` 會再開第二個 → 用戶輸兩次）
+- [ ] 刪死代碼 `ui/fyneui/sudo_dialog.go`（`askPassword`/`withAuth` 零呼叫點；實際路徑是 `sudo.go` 的 `authManager`）
+- [ ] 密碼維持只存記憶體（`e.Password`，不落磁碟）— 不變
+- 驗證（真機）：啟動輸入一次後，後續所有操作不再問；快速連點操作不疊開兩個對話框
+
+### 6.6.2 FYNE_SCALE 自適應
+- [ ] Fyne v2.7.4 **無運行時 `SetScale()` API**（已查證 `Settings` interface 只有 `Scale()` getter）→ 啟動前自 re-exec：`cmd/desktop` native 分支，`CRYOUTILS_FYNE_SCALE` 未設時讀 `xrandr` 解析度 → scale = clamp(寬/1280 四捨五入到 0.25 倍數, 1.0, 2.0) → 帶 env var `syscall.Exec` 重啟自己（變數已設即跳過，防迴圈）
+- [ ] 映射：1280×800→1.0 · 1920×1080→1.5 · 2560×1440→2.0 · 3840×2160→2.0（上限）
+- [ ] 手動覆蓋：`FYNE_SCALE` env var 優先（與 Fyne 既有行為相容）
+- 真機已驗證：`FYNE_SCALE=1.5 ./cryoutils-ng-desktop -ui native` 可用（用戶測試 2026-09-11）
+
+### 6.6.3 4K 排版修正
+- [ ] 內容欄寬度上限 + 置中：scroll 內容外包自訂 Layout，寬度 = min(視窗寬, ~1100)（修 select/按鈕在 4K 最大化被拉成 ~3750px 長條）
+- [ ] 視窗尺寸跟隨螢幕：取代固定 `Resize(1280×800)`，改螢幕 ~70–80% + 置中（Deck 原生 1280×800 維持現行行為）
+- [ ] Status 區塊改 `container.NewGridWrap` 雙欄（7 行 key: value → 4 行）
+- [ ] 各 section 包 `widget.NewCard` + `container.NewPadded`（標題層級 + 分組感）
+- [ ] （可選，**違反單欄設計決策，需用戶另行拍板**）視窗寬 >2000px 時兩欄 GridWrap
+
+### 6.6.4 驗證
+- [ ] a1 Xvfb headless 截圖 + OCR：1280×800（scale 1.0）+ 3840×2160（scale 2.0），確認 Deck 原生解析度沒被改壞
+- [ ] scp 二進位上真 Deck，用戶驗收（4K + 1280×800 雙解析度）
+
 ## Phase 5.7: Sudo 安全修正 ✅
 - [x] `core/sudo.go` — `RenewAuth()` 加 `-k` flag 強制忘記 cached timestamp，回傳 `error`，檢查空密碼
 - [x] `core/sudo.go` — `TestAuth()` 加 `-k` flag 防止 cached timestamp 繞過驗證
