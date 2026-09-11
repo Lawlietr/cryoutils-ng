@@ -11,6 +11,7 @@
 - **工作前先確認環境**：每次任務開始時必須先用 `cat /etc/os-release | grep PRETTY_NAME` 確認當前在哪個環境，並回報給用戶。
   - Dev VM (`a1` / `root@192.168.1.15`)：Ubuntu 24.04，有 Go + Node + 編譯工具
   - SteamOS：rootfs 唯讀，無開發工具鏈，無 sshd，只接受預編譯二進位
+  - **SteamOS 端禁止開發**（改程式碼/建置/測試，一律在 Dev VM 做）；但**直接修改 repo 內容（如文件）並 commit/push 是允許的**（2026-09-11 用戶澄清）
 - **二進位複製方向**：SteamOS 未啟用 sshd，Dev VM 無法 SSH 到 SteamOS。所有二進位複製都由 **SteamOS 主動執行 `scp` 從 Dev VM 拉取**（`scp root@192.168.1.15:/path/to/binary ~/.cryoutils_ng/`）。Dev VM 端編譯完成後只需報告結果，不嘗試推送。
 - **Go 路徑**：`go` 不在 agent 的 PATH 中（`.bashrc` 對非互動式 shell 無效）。**所有 Go 命令必須使用完整路徑**：`/usr/local/go/bin/go`。例如：`/usr/local/go/bin/go build -o cryoutils-ng ./cmd/cryoutilities`。
 - **Git 規範（MANDATORY）**：
