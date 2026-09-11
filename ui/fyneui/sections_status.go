@@ -38,16 +38,14 @@ func sectionsStatus(c *uiCtx) fyne.CanvasObject {
 	swappiness := widget.NewLabel(fmt.Sprintf("%s: %s", lang.T("status.swappiness"), sum["Swappiness"]))
 	vram := widget.NewLabel(fmt.Sprintf("%s: %s", lang.T("status.vram"), sum["VRAM"]))
 
-	title := widget.NewLabel(lang.T("status.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewVBox(
-		title,
+	// Two-column grid: 7 key/value rows collapse to 4 rows (4K readability).
+	grid := container.NewGridWithColumns(2,
 		swapFile, swapSize,
 		zramSize, zramActive, totalSwap,
 		swappiness, vram,
-		widget.NewSeparator(),
 	)
+
+	return widget.NewCard(lang.T("status.title"), "", grid)
 }
 
 func formatEnabled(val string, lang *i18n.Lang) string {

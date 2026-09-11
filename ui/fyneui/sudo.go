@@ -36,6 +36,13 @@ type authManager struct {
 	lang    *i18n.Lang
 	banner  fyne.CanvasObject
 	skipped bool
+	// dialogOpen is true while a password dialog is on screen. It guarantees
+	// only one dialog at a time: the startup prompt is shown 200ms after
+	// launch, and if the user clicks an operation before answering, the
+	// request is queued instead of opening a second dialog.
+	dialogOpen  bool
+	pending     func()
+	pendingSkip func()
 }
 
 func newAuthManager(e *core.Engine, win fyne.Window) *authManager {
@@ -76,8 +83,28 @@ func (a *authManager) ensure(run func(), onSkip func()) {
 	a.prompt(run, onSkip)
 }
 
+// flushPending re-enters ensure for a request that arrived while the
+// password dialog was open. Must be called after the dialog closed.
+func (a *authManager) flushPending() {
+	if a.pending == nil && a.pendingSkip == nil {
+		return
+	}
+	run, onSkip := a.pending, a.pendingSkip
+	a.pending, a.pendingSkip = nil, nil
+	a.ensure(run, onSkip)
+}
+
 // prompt shows the password dialog. A wrong password re-prompts.
+// If a dialog is already open, the request is queued (flushed after the
+// current dialog resolves) so the user is never asked twice at once.
 func (a *authManager) prompt(run func(), onSkip func()) {
+	if a.dialogOpen {
+		a.pending = run
+		a.pendingSkip = onSkip
+		return
+	}
+	a.dialogOpen = true
+
 	lang := a.lang
 	if lang == nil {
 		lang = i18n.Load("en")
@@ -88,11 +115,13 @@ func (a *authManager) prompt(run func(), onSkip func()) {
 
 	verify := func() {
 		if err := a.e.TestAuth(entry.Text); err != nil {
+			a.dialogOpen = false
 			dialog.ShowError(err, a.win)
 			dlg.Hide()
 			a.prompt(run, onSkip)
 			return
 		}
+		a.dialogOpen = false
 		a.e.Password = entry.Text
 		a.skipped = false
 		if a.banner != nil {
@@ -102,9 +131,11 @@ func (a *authManager) prompt(run func(), onSkip func()) {
 		if run != nil {
 			run()
 		}
+		a.flushPending()
 	}
 
 	skip := func() {
+		a.dialogOpen = false
 		a.skipped = true
 		dlg.Hide()
 		if a.banner != nil {
@@ -113,6 +144,7 @@ func (a *authManager) prompt(run func(), onSkip func()) {
 		if onSkip != nil {
 			onSkip()
 		}
+		a.flushPending()
 	}
 
 	entry.OnSubmitted = func(string) { verify() }

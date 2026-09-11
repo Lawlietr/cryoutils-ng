@@ -67,12 +67,5 @@ func sectionsPresets(c *uiCtx) fyne.CanvasObject {
 		)
 	})
 
-	title := widget.NewLabel(lang.T("presets.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewVBox(
-		title,
-		container.NewHBox(btnRecommended, btnStock),
-		widget.NewSeparator(),
-	)
+	return widget.NewCard(lang.T("presets.title"), "", container.NewHBox(btnRecommended, btnStock))
 }

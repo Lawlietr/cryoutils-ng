@@ -92,7 +92,8 @@ func Run(e *core.Engine) {
 	}
 
 	w := a.NewWindow("CryoUtils NG")
-	w.Resize(fyne.NewSize(1280, 800))
+	w.Resize(windowSizeForScreen())
+	w.CenterOnScreen()
 
 	prog := widget.NewProgressBarInfinite()
 	prog.Hide()
@@ -153,7 +154,7 @@ func Run(e *core.Engine) {
 			sectionsPresets(c),
 			sectionsGameData(c),
 		)
-		scroll := container.NewVScroll(content)
+		scroll := container.NewVScroll(container.New(cappedCenterLayout{}, content))
 		w.SetContent(container.NewBorder(header, nil, nil, nil, scroll))
 
 		if os.Getenv("CRYOUTILS_UI_DEBUG") != "" {

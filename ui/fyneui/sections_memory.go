@@ -62,12 +62,5 @@ func sectionsMemory(c *uiCtx) fyne.CanvasObject {
 		box.Add(cb)
 	}
 
-	title := widget.NewLabel(lang.T("memory.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewVBox(
-		title,
-		box,
-		widget.NewSeparator(),
-	)
+	return widget.NewCard(lang.T("memory.title"), "", box)
 }

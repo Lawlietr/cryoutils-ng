@@ -63,6 +63,7 @@ func main() {
 	flag.Parse()
 
 	if uiMode == "native" {
+		maybeReexecWithScale()
 		e.InfoLog.Println("Starting native Fyne UI (no HTTP server)")
 		fyneui.Run(e)
 		return

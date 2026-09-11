@@ -32,13 +32,8 @@ func sectionsVRAM(c *uiCtx) fyne.CanvasObject {
 	notes := widget.NewLabel(c.lang.T("vram.readOnly"))
 	notes.TextStyle = fyne.TextStyle{Italic: true}
 
-	title := widget.NewLabel(c.lang.T("vram.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewVBox(
-		title,
+	return widget.NewCard(c.lang.T("vram.title"), "", container.NewVBox(
 		vram,
 		notes,
-		widget.NewSeparator(),
-	)
+	))
 }

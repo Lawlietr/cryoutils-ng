@@ -77,21 +77,16 @@ func sectionsSwap(c *uiCtx) fyne.CanvasObject {
 		}
 	}
 
-	title := widget.NewLabel(lang.T("swap.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
 	zramNote := widget.NewLabel(lang.T("swap.zramNote"))
 	zramNote.TextStyle = fyne.TextStyle{Italic: true}
 
-	return container.NewVBox(
-		title,
+	return widget.NewCard(lang.T("swap.title"), "", container.NewVBox(
 		widget.NewLabel(lang.T("swap.swapSizeGB")),
 		selectSize,
 		btnResize,
 		zramNote,
 		container.NewHBox(widget.NewLabel(lang.T("status.swappiness")), swappinessEntry, btnSwappiness),
-		widget.NewSeparator(),
-	)
+	))
 }
 
 // pickCurrentSwapSize finds the "Current Size" entry, falling back to Default.

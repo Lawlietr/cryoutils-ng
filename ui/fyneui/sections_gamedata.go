@@ -111,18 +111,13 @@ func sectionsGameData(c *uiCtx) fyne.CanvasObject {
 		)
 	})
 
-	title := widget.NewLabel(lang.T("gamedata.title"))
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewVBox(
-		title,
+	return widget.NewCard(lang.T("gamedata.title"), "", container.NewVBox(
 		widget.NewLabel(lang.T("gamedata.ssdLibrary")),
 		ssdSelect,
 		widget.NewLabel(lang.T("gamedata.externalLibrary")),
 		extSelect,
 		container.NewHBox(btnSync, btnCleanup),
-		widget.NewSeparator(),
-	)
+	))
 }
 
 func libraryPaths(libs []core.Library) []string {
