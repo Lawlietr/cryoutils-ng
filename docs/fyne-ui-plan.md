@@ -76,6 +76,9 @@ Web UI **保留**（Phase 7 Decky 要重用 React 前端 + 作為 fallback），
 cmd/desktop/
   main.go          + `-ui web|native` flag；native 分支：不啟 HTTP/token/瀏覽器，
                    建立 core.Engine 後直接在 process 內跑 fyneui.Run(e)
+                   [Phase 6.6] native 分支先呼叫 `maybeReexecWithScale()`（FYNE_SCALE 自適應 re-exec）
+  scale.go         [Phase 6.6] `maybeReexecWithScale()` + `computeScale()`（xrandr 寬度 → scale）
+  scale_test.go    [Phase 6.6] computeScale 單元測試
   (web 模式既有 code 全部不動)
 
 ui/fyneui/         [新增] package fyneui —— 新原生 UI
@@ -86,7 +89,8 @@ ui/fyneui/         [新增] package fyneui —— 新原生 UI
   sections_vram.go      VRAM 唯讀
   sections_presets.go   Recommended / Stock
   sections_gamedata.go  Steam 遊戲資料 sync / cleanup
-  sudo_dialog.go        sudo 密碼對話框
+  sudo.go               sudo 密碼對話框（`authManager`；原 `sudo_dialog.go` 零呼叫死代碼已於 Phase 6.6.1 刪除）
+  layout.go             [Phase 6.6] `cappedCenterLayout`（內容 1100px 上限置中）+ `windowSizeForScreen()`（80% 螢幕÷scale + 置中）
   lang.go               語言選單 + 整頁重繪 + ui.json 持久化
   fonts.go              //go:embed fonts/*.ttf + 設為預設字體
   fonts/                NotoSansTC-Regular.ttf / NotoSansTC-Bold.ttf + OFL.txt
@@ -235,7 +239,7 @@ func (l *Lang) Label() string
 | 主題 | `app.SetTheme(theme.DarkTheme())` |
 | 字體 | `//go:embed fonts/NotoSansTC-Regular.ttf fonts/NotoSansTC-Bold.ttf` → `fyne.NewStaticResource` → `fyne.SetFontWithAlias(res, fyne.TextFont{...})`（v2.5+ 字體 API；**2.7.4 確切簽名照官方 docs 對**，2.5 起 API 有過一次重構）。Bold 對應 `fyne.TextFontBold` style。備援：custom theme 設 `theme.Font` |
 | 字體來源 | `https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC-Regular.ttf`（及 `-Bold.ttf`）；OFL 授權，連 `OFL.txt` 一起放入 `fonts/`（GPLv3 + OFL 相容）。**下載後驗證檔有效（`file` 指令 + 實際渲染）**；repo 路徑有變就換 notofonts/noto-cjk |
-| Window | `w.Resize(fyne.NewSize(1280, 800))`（Deck 原生解析度）、resizable、`w.ShowAndRun()` |
+| Window | [Phase 6.5 原設計] `w.Resize(fyne.NewSize(1280, 800))`（Deck 原生解析度）、resizable、`w.ShowAndRun()` → **[Phase 6.6 已改]** `w.Resize(windowSizeForScreen())`（Deck 原生 ≤1280×800 維持 full screen；大螢幕 = 80% 螢幕÷scale）+ `w.CenterOnScreen()` |
 | 單頁結構 | `container.NewVBox(header, progressRow, sc)`，其中 `sc := container.NewScroll(contentBox)`；progressRow 預設 height 0 / 隱藏 |
 | 語言切換 | 選單 `onChange` → 存 `ui.json` → **重建整個 contentBox**（整頁重繪，最簡單可靠） |
 | 語言持久化 | `~/.cryoutils_ng/ui.json`：`{"language":"zh-TW"}`；不存在時預設 `en` |

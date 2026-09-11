@@ -168,27 +168,28 @@
 > 施工順序（用戶確認 2026-09-11）：6.6.1 → 6.6.2 → 6.6.3 → 6.6.4。
 
 ### 6.6.1 sudo 雙問修正（native）
-- [ ] 保留啟動密碼對話框（**用戶決策 2026-09-11**：部分狀態讀取走 `sudo cat`（`core/util.go`），非 root 時很多狀態看不到 → **不做** pure lazy 問密碼）
-- [ ] 防對話框疊開：`authManager` 加「同一時間只允許一個密碼對話框」flag（啟動對話框延遲 200ms，若用戶先點操作，`runTask → ensure` 會再開第二個 → 用戶輸兩次）
-- [ ] 刪死代碼 `ui/fyneui/sudo_dialog.go`（`askPassword`/`withAuth` 零呼叫點；實際路徑是 `sudo.go` 的 `authManager`）
-- [ ] 密碼維持只存記憶體（`e.Password`，不落磁碟）— 不變
-- 驗證（真機）：啟動輸入一次後，後續所有操作不再問；快速連點操作不疊開兩個對話框
+- [x] 保留啟動密碼對話框（**用戶決策 2026-09-11**：部分狀態讀取走 `sudo cat`（`core/util.go`），非 root 時很多狀態看不到 → **不做** pure lazy 問密碼）
+- [x] 防對話框疊開：`authManager` 加 `dialogOpen` flag + `pending` 佇列（啟動對話框延遲 200ms，若用戶先點操作 → 佇列，對話框解決後 `flushPending` 重入 `ensure`）（2026-09-11 dev 完成）
+- [x] 刪死代碼 `ui/fyneui/sudo_dialog.go`（`askPassword`/`withAuth` 零呼叫點；實際路徑是 `sudo.go` 的 `authManager`）（2026-09-11 已刪）
+- [x] 密碼維持只存記憶體（`e.Password`，不落磁碟）— 不變
+- [ ] 驗證（真機）：啟動輸入一次後，後續所有操作不再問；快速連點操作不疊開兩個對話框
 
 ### 6.6.2 FYNE_SCALE 自適應
-- [ ] Fyne v2.7.4 **無運行時 `SetScale()` API**（已查證 `Settings` interface 只有 `Scale()` getter）→ 啟動前自 re-exec：`cmd/desktop` native 分支，`CRYOUTILS_FYNE_SCALE` 未設時讀 `xrandr` 解析度 → scale = clamp(寬/1280 四捨五入到 0.25 倍數, 1.0, 2.0) → 帶 env var `syscall.Exec` 重啟自己（變數已設即跳過，防迴圈）
-- [ ] 映射：1280×800→1.0 · 1920×1080→1.5 · 2560×1440→2.0 · 3840×2160→2.0（上限）
-- [ ] 手動覆蓋：`FYNE_SCALE` env var 優先（與 Fyne 既有行為相容）
+- [x] Fyne v2.7.4 **無運行時 `SetScale()` API**（已查證 `Settings` interface 只有 `Scale()` getter）→ 啟動前自 re-exec：`cmd/desktop/scale.go` `maybeReexecWithScale()`，native 分支啟動時（Fyne app 建立前）`FYNE_SCALE` 與 `CRYOUTILS_FYNE_SCALE` 皆未設 → 讀 `xrandr` 解析度 → scale = clamp(寬/1280 四捨五入到 0.25 倍數, 1.0, 2.0) → 帶 env var `syscall.Exec` 重啟自己（變數已設即跳過，防迴圈）（2026-09-11 dev 完成）
+- [x] 映射：1280×800→1.0 · 1920×1080→1.5 · 2560×1440→2.0 · 3840×2160→2.0（上限）；**scale==1.0 時直接跳過 re-exec**（原生解析度免無謂 process restart）（2026-09-11 dev）
+- [x] 手動覆蓋：`FYNE_SCALE` env var 優先（與 Fyne 既有行為相容）；**re-exec 同時設 `FYNE_SCALE`（Fyne 實際讀取的變數）與 `CRYOUTILS_FYNE_SCALE`（防迴圈 guard + UI 邏輯尺寸計算用）**（2026-09-11 dev）
 - 真機已驗證：`FYNE_SCALE=1.5 ./cryoutils-ng-desktop -ui native` 可用（用戶測試 2026-09-11）
+- headless 驗證（2026-09-11 a1 Xvfb）：1280×800 無 re-exec（scale 1.0）· 3840×2160 re-exec `FYNE_SCALE=2` 生效
 
 ### 6.6.3 4K 排版修正
-- [ ] 內容欄寬度上限 + 置中：scroll 內容外包自訂 Layout，寬度 = min(視窗寬, ~1100)（修 select/按鈕在 4K 最大化被拉成 ~3750px 長條）
-- [ ] 視窗尺寸跟隨螢幕：取代固定 `Resize(1280×800)`，改螢幕 ~70–80% + 置中（Deck 原生 1280×800 維持現行行為）
-- [ ] Status 區塊改 `container.NewGridWrap` 雙欄（7 行 key: value → 4 行）
-- [ ] 各 section 包 `widget.NewCard` + `container.NewPadded`（標題層級 + 分組感）
+- [x] 內容欄寬度上限 + 置中：`ui/fyneui/layout.go` `cappedCenterLayout`（`contentMaxWidth=1100`），scroll 內容外包 `container.New(cappedCenterLayout{}, content)`，寬度 = min(視窗寬, 1100) 水平置中（修 select/按鈕在 4K 最大化被拉成 ~3750px 長條）（2026-09-11 dev）
+- [x] 視窗尺寸跟隨螢幕：`windowSizeForScreen()` 取代固定 `Resize(1280×800)` — 螢幕 >1280×800 時 = **80% 螢幕（physical px）÷ scale**（scale 生效後 logical px 不超螢幕），並 `w.CenterOnScreen()` 置中；Deck 原生 1280×800 維持 full screen（2026-09-11 dev）
+- [x] Status 區塊改雙欄：`container.NewGridWithColumns(2, ...)`（**Fyne v2.7.4 用 `NewGridWithColumns`**，非 `NewGridWrap` — 後者是固定 cell size 會改尺寸）7 行 key: value → 4 行（2026-09-11 dev）
+- [x] 各 section 包 `widget.NewCard(title, subtitle, content)`（v2.7.4 為 3 參）（標題層級 + 分組感）（2026-09-11 dev）
 - [ ] （可選，**違反單欄設計決策，需用戶另行拍板**）視窗寬 >2000px 時兩欄 GridWrap
 
 ### 6.6.4 驗證
-- [ ] a1 Xvfb headless 截圖 + OCR：1280×800（scale 1.0）+ 3840×2160（scale 2.0），確認 Deck 原生解析度沒被改壞
+- [x] a1 Xvfb headless 截圖：1280×800（scale 1.0，full screen，無 re-exec）+ 3840×2160（scale 2.0 re-exec，視窗 3070×1726 於 (384,216) = 80% 置中），Deck 原生解析度沒被改壞、中文渲染正常（2026-09-11 dev）
 - [ ] scp 二進位上真 Deck，用戶驗收（4K + 1280×800 雙解析度）
 
 ## Phase 5.7: Sudo 安全修正 ✅
