@@ -142,8 +142,8 @@ active
 
 | binary | 建置方式 | md5 |
 |---|---|---|
-| `cmd/cryoutilities/cryoutils-ng` | `CGO_ENABLED=0` | `8a1481f0d5918652425e8b23a564a3b2` |
-| `cmd/desktop/cryoutils-ng-desktop` | `CGO_ENABLED=1` | `1db37575338dbf78cf05c4f857e6fd66` |
+| `cmd/cryoutilities/cryoutils-ng` | `CGO_ENABLED=0` | `b030ec483809ccc96dd6798365e57a37` |
+| `cmd/desktop/cryoutils-ng-desktop` | `CGO_ENABLED=1` | `c77c6a53b7ea5267cb15a42d77311f4e` |
 
 - [ ] `sudo cryoutils-ng swap 16`（與現值相同）後：`/proc/swaps` **zram0 仍在**，Priority 仍為 **100**，Size 仍 7579644
 - [ ] `sudo cryoutils-ng swap 12` 再 `swap 16`：兩次都保持 zram 存在；`zramctl` 顯示 zstd / 7.2G
@@ -165,10 +165,11 @@ active
 | `cmd/desktop/api.go` | `handleSwapResize` 從「自己重寫四步」改為只呼叫 `e.ChangeSwapSize()` |
 | `cmd/desktop/main.go` | log 改 `O_APPEND`（去掉 `os.Remove`）；`SetProgressCallback` → `core.ProgressChannel`（非阻塞 send） |
 | `cmd/cryoutilities/main.go` | log 改 `O_APPEND`；進度印 stdout；失敗同時印 **stderr** |
+| `core/engine.go` | `GetStatusSummary()` 先 `resolveSwapFileLocation()`：複合字面量按原始碼順序求值，`SwapFile` 在 `SwapSizeGB` 之前就讀了 `SwapFileLocation` → 全新 CLI 跑 `status` 時 `SwapFile:` 印空（真機冒煙時發現，已修 + 迴歸測試） |
 
 ### 測試（Dev VM，Go 1.26.10）
 - 變更前基準：`core` `go vet` clean、`go test ./...` ok（先確認再改）
-- 變更後：`go vet` clean（`core` 與 `CGO_ENABLED=1` 的 `cmd/desktop`）、`go test ./...` ok、swap 相關 **11 個 PASS，無 skip**
+- 變更後：`go vet` clean（`core` 與 `CGO_ENABLED=1` 的 `cmd/desktop`）、`go test ./...` ok、swap/status 相關 **12 個 PASS，無 skip**
 - 關鍵迴歸測試（命令插樁：假 `swapoff/swapon/mkswap/dd/chmod` 寫入 PATH 記錄 argv）：
   - `TestChangeSwapSizeNeverTurnsOffOtherSwap`：`swapoff` 只被叫一次且參數 == location；任何記錄行不得出現 `-a` 或 `zram`；順序 swapoff→mkswap→swapon
   - `TestChangeSwapSizeResolvesLocationItself`：CLI 未預先解析 location 也必須自己找到，`dd` 不得拿到空 `of=`

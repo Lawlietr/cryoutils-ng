@@ -34,7 +34,7 @@ type Engine struct {
 	InfoLog  *log.Logger
 	ErrorLog *log.Logger
 
-	Password string
+	Password   string
 	OnProgress OnProgressCallback
 
 	SteamAPIResponse map[int]string
@@ -130,9 +130,16 @@ func (e *Engine) GetStatusSummary() map[string]string {
 	zramActive, _ := e.GetZramStatus()
 	zramSize, _ := e.GetZramSizeBytes()
 	zramSizeGB := int(zramSize / int64(GigabyteMultiplier))
+	// Resolve the location explicitly: a composite literal is evaluated in source
+	// order, so reading e.SwapFileLocation here (before the SwapSizeGB entry that
+	// discovers it) reported an empty SwapFile on a fresh CLI run.
+	swapFile, _ := e.resolveSwapFileLocation()
+	if swapFile == "" {
+		swapFile = e.SwapFileLocation
+	}
 
 	return map[string]string{
-		"SwapFile":                e.SwapFileLocation,
+		"SwapFile":                swapFile,
 		"SwapSizeGB":              fmt.Sprintf("%d", e.getSwapSizeGB()),
 		"ZramSizeGB":              fmt.Sprintf("%d", zramSizeGB),
 		"ZramActive":              fmt.Sprintf("%v", zramActive),

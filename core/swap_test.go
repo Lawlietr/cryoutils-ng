@@ -270,6 +270,30 @@ func indexOfCall(calls []string, prefix string) int {
 	return -1
 }
 
+// TestStatusSummaryReportsSwapFileLocation guards the display regression where
+// `status` printed an empty SwapFile: the map literal read SwapFileLocation in
+// source order, before the SwapSizeGB entry resolved it.
+func TestStatusSummaryReportsSwapFileLocation(t *testing.T) {
+	if entries, err := readSwapEntries(); err == nil && parseSwapFileLocation(entries) != "" {
+		t.Skipf("this machine has a swap file (%s); the default-location path is not reachable here", parseSwapFileLocation(entries))
+	}
+
+	swapFile := filepath.Join(t.TempDir(), "swapfile")
+	if err := os.WriteFile(swapFile, []byte("x"), 0600); err != nil {
+		t.Fatalf("creating stand-in swap file: %v", err)
+	}
+
+	originalDefault := DefaultSwapFileLocation
+	DefaultSwapFileLocation = swapFile
+	defer func() { DefaultSwapFileLocation = originalDefault }()
+
+	e := NewEngine(io.Discard, io.Discard)
+	summary := e.GetStatusSummary()
+	if summary["SwapFile"] != swapFile {
+		t.Errorf("status SwapFile = %q, want %q", summary["SwapFile"], swapFile)
+	}
+}
+
 // TestChangeSwapSizeNeverTurnsOffOtherSwap is the regression test for the bug in
 // docs/zram-swapoff-reset.md: the resize may only switch off its own swap file.
 // "swapoff -a" makes systemd tear the zram device down outright
