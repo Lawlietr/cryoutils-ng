@@ -6,6 +6,7 @@
 > **禁止自行 commit/push**（AGENTS.md 工作規則）。
 
 > **進度（2026-08-23）**：Steps 0–10 已完成（Fyne v2.7.4、i18n、`ui/fyneui/` 六區塊、sudo 對話框、headless 截圖通過）。實作與本手冊的已知偏差記錄在 `todo.md` Phase 6.5（VBox→Border 根布局、`widget.NewModalPopUp`、in-place refreshers 架構）。剩 Steps 11–14。
+> **進度（2026-10-20）**：Phase 6.6 之後的兩項修改已真機結案 —— (a) swap resize 不再摧毀 zram（方法 A，見 `docs/zram-swapoff-reset.md`）；(b) native UI 不再出現第二次 sudo 密碼提示、swap 下拉即時跟隨真實大小（見 `todo.md` P0.8）。本手冊 §2.3 的 in-place refresher 描述與 §2.4 的 sudo 流程已依實際實作更新。
 
 ---
 
@@ -149,6 +150,10 @@ func onResize(size string, e *core.Engine, w *fyne.Window) {
 - **`e.SetProgressCallback(...)` 只在啟動時掛一次**（Fyne 版回呼，內部用 `fyne.Do` 更新 progress bar 數值）。
   注意 Web 模式用的 SSE broadcast 機制（`core/progress.go`）在 native 模式**不使用**。
 - 狀態自動刷新：**5 秒 ticker + 每次操作後 + 手動 Refresh 按鈕**（三者皆有，[DECIDED]）。
+- **刷新的兩條路徑（實作為兩條，手冊早期寫的「in-place refreshers registry」已換掉）**：
+  - **status 卡片 = 整塊重建**：`c.refreshStatus()` 把 `statusBox.Objects` 換成新的 `sectionsStatus(c)`，所以 status 裡的數值一定最新（重建成本可接受，因為只有這一塊）。
+  - **不能重建的卡片（有下拉選單、輸入框，重建會丟使用者選擇）= 註冊 refresher**：`uiCtx.addRefresher(fn)`，由 `refreshStatus()` 一併執行（5 秒 ticker、操作完成後、手動 Refresh 三個入口都會跑）。swap 卡片用它就地更新 `Select.SetOptions` + `nextSwapSelection()`（保留使用者明確挑選的項目；"N - Current Size" 偽項目跟隨真實大小）與 swappiness placeholder。
+  - **規則**：任何新增卡片若含使用者可操作的小工具，**必須**註冊 refresher，否則數值會 freeze 在啟動當時（swap 下拉就是這個 bug，見 `todo.md` P0.8）。`uiCtx.lastStatus` 快取 status 卡片剛讀過的 summary，refresher 不必再抓一次。
 
 ### 2.4 Sudo 流程
 
@@ -158,6 +163,10 @@ func onResize(size string, e *core.Engine, w *fyne.Window) {
 - 操作中 `RenewAuth()` 回錯（密碼錯 / 已過期）→ **重彈對話框**。
 - 密碼只存 `e.Password`（記憶體），**不落磁碟**（決策 8）。
 - CLI 以 `sudo` 執行時 euid==0 的路徑由 `core/sudo.go` 處理，UI 不需理會。
+- **所有特權命令一律走 `core.Engine.runSudo()` / `runSudoWithInput()`**（AGENTS.md 的 MANDATORY 規則）。沒有 `-S` 的裸 `sudo` 會從 tty 問密碼：2026-10-20 真機就是這樣變成「終端問一次 + UI 對話框再問一次」（`getUnitStatus()` 的 `sudo cat` 在 status 卡片建立時觸發）。
+- **沒有密碼時 `runSudo()` 回 `ErrNoSudoPassword`，完全不啟動 sudo** → 永不碰終端；同時 5 秒 status 刷新不會把每個參數的 sudo 失敗寫進 log。此時需要 root 的讀值回 `"nil"`（UI/CLI 目前顯示成 `false`，已知瑕疵，應改成 unknown）。
+- 對話框成功後會 **立即 `refreshStatus()`**（`authManager.onUnlocked`），那些需要 root 的讀值不必等 5 秒。
+- **啟動問一次仍是 locked 設計**（用戶 2026-09-11 決策：部分狀態讀取走 root，不做 pure lazy）；要改按需詢問是獨立議題。
 
 > **附註（已知缺口，記錄用）**：P0.5 已完成（2026-08）：Web 模式的密碼輸入 UI 與
 > `cmd/desktop/api.go` 的 `POST /api/auth` 端點**皆已移除**，`core/sudo.go` 的
@@ -207,7 +216,7 @@ func Available() []string
 func Load(code string) *Lang
 
 // T dot-notation 查詢："status.recommended" → 值。
-// fallback 鏈：所选語言 → en built-in → 回傳 key 本身（與 web resolveKey 行為一致）
+// fallback 鏈：所選語言 → en built-in → 回傳 key 本身（與 web resolveKey 行為一致）
 func (l *Lang) T(key string) string
 
 // Label 語言顯示名（JSON 內的 "_label" 欄位；缺省用 code）
@@ -356,7 +365,7 @@ sleep 4 && DISPLAY=:99 scrot /tmp/fyne-skeleton.png
 ### Step 11 — 真實 Steam Deck（用戶在場）
 1. Dev VM build（CGO_ENABLED=1）→ 用戶在 deck 端 `scp root@192.168.1.15:... ~/.cryoutils_ng/cryoutils-ng-desktop`
 2. Desktop Mode 啟動 `-ui native`；驗：1280×800、4K 外接、`.desktop` 圖標啟動
-3. 實測：status 數值、zh-TW、resize（zram 恢復）、sudo 對話框、語言 drop-in
+3. 實測：status 數值、zh-TW、resize（**zram 不再失效** — 方法 A 已真機通過，見 `docs/zram-swapoff-reset.md` §10）、sudo 對話框（只問一次、終端不問）、swap 下拉即時更新、語言 drop-in
 4. 確認原始 CryoUtilities 未被動過（`~/.cryo_utilities/` 完整）
 5. glibc/GL 若報缺庫 → 回報缺失庫名（SteamOS 應有：mesa、xorg、fontconfig）
 **gate**：用戶視覺 + 功能接受。
