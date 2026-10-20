@@ -18,12 +18,21 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+// ErrNoSudoPassword is returned instead of starting sudo when no password is
+// available. Starting sudo in that situation is exactly what made the native UI
+// ask twice: a sudo without -S inherits the terminal and prompts on the tty, and
+// the UI dialog then asks again through RenewAuth (which uses sudo -k on
+// purpose). The short circuit also keeps the 5s status refresh from writing one
+// failed sudo line per parameter into the log.
+var ErrNoSudoPassword = errors.New("sudo password not provided")
 
 // RenewAuth sends the stored sudo password to a dummy sudo command to refresh
 // the sudo timestamp cache. Returns error if password is empty or authentication fails.
@@ -73,16 +82,36 @@ func (e *Engine) RenewAuth() error {
 // swap", which is why the zram teardown in docs/zram-swapoff-reset.md stayed
 // invisible for so long.
 func (e *Engine) runSudo(args ...string) (string, error) {
+	return e.runSudoWithInput("", args...)
+}
+
+// runSudoWithInput is runSudo with data delivered to the command's stdin after
+// the sudo password line. It exists for `sudo tee`, where the value to write is
+// fed on stdin: sudo -S consumes exactly one line for the password, so the rest
+// of the payload reaches the command itself. When the process is already root,
+// only input is written (no password line).
+func (e *Engine) runSudoWithInput(input string, args ...string) (string, error) {
 	if len(args) == 0 {
 		return "", fmt.Errorf("runSudo: no command given")
 	}
 
 	if os.Geteuid() == 0 {
-		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
-		if err != nil {
-			e.ErrorLog.Println(commandError(args, err, string(out)))
+		cmd := exec.Command(args[0], args[1:]...)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		if input != "" {
+			cmd.Stdin = strings.NewReader(input)
 		}
-		return string(out), commandError(args, err, string(out))
+		err := cmd.Run()
+		if err != nil {
+			e.ErrorLog.Println(commandError(args, err, out.String()))
+		}
+		return out.String(), commandError(args, err, out.String())
+	}
+
+	if e.Password == "" {
+		return "", ErrNoSudoPassword
 	}
 
 	cmd := exec.Command("sudo", append([]string{"-S"}, args...)...)
@@ -99,8 +128,12 @@ func (e *Engine) runSudo(args ...string) (string, error) {
 		e.ErrorLog.Println(err)
 		return "", commandError(args, err, "")
 	}
+	payload := e.Password + "\n"
+	if input != "" {
+		payload += input
+	}
 	// A write error here just means sudo never asked (cached timestamp).
-	if _, err := stdin.Write([]byte(e.Password + "\n")); err != nil {
+	if _, err := stdin.Write([]byte(payload)); err != nil {
 		_ = err
 	}
 	_ = stdin.Close()

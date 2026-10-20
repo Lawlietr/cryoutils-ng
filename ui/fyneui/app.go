@@ -53,6 +53,23 @@ type uiCtx struct {
 	prog          *widget.ProgressBarInfinite
 	progLabel     *widget.Label
 	refreshStatus func()
+
+	// refreshers update widgets that are built once and cannot be rebuilt in
+	// place the way the status card is (dropdowns, entries). They run on the 5s
+	// ticker and right after an operation finishes, so values such as the swap
+	// size dropdown follow the system instead of freezing at launch time.
+	refreshers []func()
+
+	// lastStatus caches the summary the status card just read, so refreshers can
+	// use those values without paying for a second status collection.
+	lastStatus map[string]string
+}
+
+// addRefresher registers an in-place update for a widget built by a section.
+func (c *uiCtx) addRefresher(f func()) {
+	if f != nil {
+		c.refreshers = append(c.refreshers, f)
+	}
 }
 
 // runTask executes a privileged long task with progress UI.
@@ -110,6 +127,17 @@ func Run(e *core.Engine) {
 	auth := newAuthManager(e, w)
 	var current *uiCtx
 
+	// Status values that need root (the unit matrix reads) report "nil" until the
+	// password is supplied, so refresh as soon as the dialog succeeds instead of
+	// leaving the user staring at unknown values for up to five seconds.
+	auth.onUnlocked = func() {
+		fyne.Do(func() {
+			if current != nil && current.refreshStatus != nil {
+				current.refreshStatus()
+			}
+		})
+	}
+
 	var buildPage func()
 	buildPage = func() {
 		lang := i18n.Load(code)
@@ -120,6 +148,9 @@ func Run(e *core.Engine) {
 		c.refreshStatus = func() {
 			statusBox.Objects = []fyne.CanvasObject{sectionsStatus(c)}
 			statusBox.Refresh()
+			for _, f := range c.refreshers {
+				f()
+			}
 		}
 
 		banner := widget.NewRichText(&widget.TextSegment{

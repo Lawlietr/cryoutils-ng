@@ -80,6 +80,25 @@ func sectionsSwap(c *uiCtx) fyne.CanvasObject {
 	zramNote := widget.NewLabel(lang.T("swap.zramNote"))
 	zramNote.TextStyle = fyne.TextStyle{Italic: true}
 
+	// Unlike the status card, this card is built once, so the dropdown used to keep
+	// the "Current Size" entry that was read at launch: after a resize the label
+	// still showed the old size until the app was restarted. The options list is
+	// also filtered by the free space in /home, so it goes stale for the same
+	// reason. Refresh it in place, keeping an explicit choice the user made from
+	// the list (see nextSwapSelection).
+	c.addRefresher(func() {
+		fresh := c.e.GetAvailableSwapSizesStr()
+		keep := nextSwapSelection(selectSize.Selected, fresh)
+		selectSize.SetOptions(fresh)
+		selectSize.SetSelected(keep)
+
+		// The swappiness placeholder mirrors the live value only while the user has
+		// not typed anything.
+		if strings.TrimSpace(swappinessEntry.Text) == "" && c.lastStatus != nil {
+			swappinessEntry.SetPlaceHolder(c.lastStatus["Swappiness"])
+		}
+	})
+
 	return widget.NewCard(lang.T("swap.title"), "", container.NewVBox(
 		widget.NewLabel(lang.T("swap.swapSizeGB")),
 		selectSize,
@@ -107,6 +126,21 @@ func pickCurrentSwapSize(sizes []string) string {
 		return sizes[0]
 	}
 	return ""
+}
+
+// nextSwapSelection decides what the size dropdown shows after a refresh. An
+// explicit entry the user chose from the list is kept as long as it is still
+// offered; the "N - Current Size" pseudo entry must not be kept verbatim, because
+// its whole meaning is the size that was current when the list was built.
+func nextSwapSelection(previous string, options []string) string {
+	if previous != "" && !strings.Contains(previous, "- Current Size") {
+		for _, option := range options {
+			if option == previous {
+				return previous
+			}
+		}
+	}
+	return pickCurrentSwapSize(options)
 }
 
 // parseSwapSize extracts the GB number from entries like "1 - Default",

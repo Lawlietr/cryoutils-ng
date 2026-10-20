@@ -28,6 +28,7 @@ import (
 
 func sectionsStatus(c *uiCtx) fyne.CanvasObject {
 	sum := c.e.GetStatusSummary()
+	c.lastStatus = sum
 	lang := c.lang
 
 	swapFile := widget.NewLabel(fmt.Sprintf("%s: %s", lang.T("status.swapFile"), sum["SwapFile"]))

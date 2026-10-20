@@ -36,6 +36,9 @@ type authManager struct {
 	lang    *i18n.Lang
 	banner  fyne.CanvasObject
 	skipped bool
+	// onUnlocked runs after a successful password dialog so the page can refresh
+	// the readings that needed root right away instead of waiting for the ticker.
+	onUnlocked func()
 	// dialogOpen is true while a password dialog is on screen. It guarantees
 	// only one dialog at a time: the startup prompt is shown 200ms after
 	// launch, and if the user clicks an operation before answering, the
@@ -130,6 +133,9 @@ func (a *authManager) prompt(run func(), onSkip func()) {
 		dlg.Hide()
 		if run != nil {
 			run()
+		}
+		if a.onUnlocked != nil {
+			a.onUnlocked()
 		}
 		a.flushPending()
 	}

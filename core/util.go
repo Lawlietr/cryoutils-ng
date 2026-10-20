@@ -17,12 +17,9 @@
 package core
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -131,16 +128,16 @@ func (e *Engine) writeFile(path string, contents string) error {
 		return err
 	}
 
-	_, err = exec.Command("sudo", "mv", tempPath, path).Output()
+	_, err = e.runSudo("mv", tempPath, path)
 	if err != nil {
-		return fmt.Errorf("error moving temp file to final location")
+		return fmt.Errorf("error moving temp file to final location: %w", err)
 	}
 	return nil
 }
 
 func (e *Engine) removeFile(path string) error {
 	e.InfoLog.Println("Removing", path)
-	_, err := exec.Command("sudo", "rm", path).Output()
+	_, err := e.runSudo("rm", path)
 	if err != nil {
 		e.InfoLog.Println("Couldn't delete", path, ", likely missing.")
 	}
@@ -196,16 +193,21 @@ func removeElementFromStringSlice(str string, slice []string) []string {
 }
 
 // getUnitStatus reads the current value of a kernel parameter.
+//
+// It goes through runSudo rather than a bare `sudo cat`: a bare sudo inherits the
+// terminal and prompts for the password on the tty, which is how the native UI
+// ended up asking twice (terminal prompt on startup, then the UI dialog).
+// Without a password it returns ErrNoSudoPassword instead of spawning sudo, so
+// the 5s status refresh stays quiet until the user unlocks in the UI.
 func (e *Engine) getUnitStatus(param string) (string, error) {
 	var output string
-	cmd, err := exec.Command("sudo", "cat", UnitMatrix[param]).Output()
+	cmd, err := e.runSudo("cat", UnitMatrix[param])
 	if err != nil {
-		e.ErrorLog.Println(err)
 		return "nil", err
 	}
 	// This is just to get the actual value in units which present as a list.
-	if strings.Contains(string(cmd), "[") {
-		slice := strings.Fields(string(cmd))
+	if strings.Contains(cmd, "[") {
+		slice := strings.Fields(cmd)
 		for x := range slice {
 			if strings.Contains(slice[x], "[") {
 				output = strings.ReplaceAll(slice[x], "[", "")
@@ -213,7 +215,7 @@ func (e *Engine) getUnitStatus(param string) (string, error) {
 			}
 		}
 	} else {
-		output = strings.TrimSpace(string(cmd))
+		output = strings.TrimSpace(cmd)
 	}
 	return output, nil
 }
@@ -243,26 +245,17 @@ func (e *Engine) removeUnitFile(param string) error {
 	return nil
 }
 
-// setUnitValue writes a value directly to a kernel parameter via sudo tee.
+// setUnitValue writes a value directly to a kernel parameter.
+//
+// The previous implementation piped `echo value` into a bare `sudo tee`, ignored
+// every error, and dumped the command output to os.Stdout, so a failed write
+// looked like a successful one. It now goes through runSudoWithInput, which
+// supplies the password on stdin without ever prompting on the terminal, and the
+// error is returned.
 func (e *Engine) setUnitValue(param string, value string) error {
 	e.InfoLog.Println("Writing", value, "for param", param, "to memory.")
-	// This mess is the only way I could find to push directly to unit files,
-	// without requiring a sudo password on installation to change capabilities.
-	echoCmd := exec.Command("echo", value)
-	teeCmd := exec.Command("sudo", "tee", UnitMatrix[param])
-	reader, writer := io.Pipe()
-	var buf bytes.Buffer
-	echoCmd.Stdout = writer
-	teeCmd.Stdin = reader
-	teeCmd.Stdout = &buf
-	echoCmd.Start()
-	teeCmd.Start()
-	echoCmd.Wait()
-	writer.Close()
-	teeCmd.Wait()
-	reader.Close()
-	io.Copy(os.Stdout, &buf)
-	return nil
+	_, err := e.runSudoWithInput(value, "tee", UnitMatrix[param])
+	return err
 }
 
 // getHumanVRAMSize converts VRAM size in MB to a human-readable string.
