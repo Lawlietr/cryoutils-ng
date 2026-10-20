@@ -97,7 +97,7 @@ dev-zram0.swap                  generated
 
 ### 方法 B —— 安全網（可選，之後再加）
 
-万一双 zram 還是因為別的原因不见了，用 **systemd** 恢復，不是裸 `swapon`：
+万一双 zram 還是因為別的原因不見了，用 **systemd** 恢復，不是裸 `swapon`：
 
 ```bash
 systemctl restart systemd-zram-setup@zram0.service
@@ -145,20 +145,20 @@ active
 | `cmd/cryoutilities/cryoutils-ng` | `CGO_ENABLED=0` | `b030ec483809ccc96dd6798365e57a37` |
 | `cmd/desktop/cryoutils-ng-desktop` | `CGO_ENABLED=1` | `c77c6a53b7ea5267cb15a42d77311f4e` |
 
-- [ ] `sudo cryoutils-ng swap 16`（與現值相同）後：`/proc/swaps` **zram0 仍在**，Priority 仍為 **100**，Size 仍 7579644
-- [ ] `sudo cryoutils-ng swap 12` 再 `swap 16`：兩次都保持 zram 存在；`zramctl` 顯示 zstd / 7.2G
-- [ ] `SwapTotal` 在 resize 前後差異只來自 swapfile 大小变化，不含 zram 消失
-- [ ] app log 中不再出现 `Failed to re-enable zram`，且日誌可追溯（append 模式）
-- [ ] 提前把 swap used 拉高於 MemAvailable 時，resize **中止並報明原因**，而不是把系統壓到 earlyoom 殺程序
-- [ ] web UI / native UI / CLI `status` 的 `ZramActive` 在 resize 前後都為 true
-- [ ] 原版 CryoUtilities 不受影響（`~/.cryo_utilities/` 內容不變）
+- [x] `sudo cryoutils-ng swap 16` 後：`/proc/swaps` **zram0 仍在**，Priority 仍為 **100**，Size 仍 7579644
+- [x] `swap 2` → `8` → `16` → `12`（2026-10-20 實測四次）：每次都保持 zram 存在；`zramctl` 顯示 zstd / 7.2G
+- [x] `SwapTotal` 在 resize 前後差異只來自 swapfile 大小變化，不含 zram 消失
+- [x] app log 中不再出現 `Failed to re-enable zram`，且日誌可追溯（append 模式）
+- [ ] 換頁安全檢查的拒絕路徑（**尚未觸發**：需刻意把 swap used 拉到超過 `MemAvailable` + 其他 swap 的剩餘容量，resize 才會在 swapoff 之前中止並報明原因，而不是把系統壓到被 earlyoom 殺程序）
+- [x] web UI / native UI / CLI `status` 的 `ZramActive` 在 resize 前後都為 true
+- [x] 原版 CryoUtilities 不受影響（`~/.cryo_utilities/` 內容不變）
 
 ## 9. 實作紀錄（方法 A，Dev VM，2026-10-20）
 
 ### 改動
 | 檔案 | 內容 |
 |---|---|
-| `core/swap.go` | `DisableSwap()` → `swapoff <location>`（只關自己）；`ChangeSwapSize()` 移除 zram 重啟區塊與 `zramActive` 前置偵測（改為 resize 後若 zram 不见就 log `systemctl restart systemd-zram-setup@zram0.service` 警告）；新增 `resolveSwapFileLocation()`、`checkSwapMigrationSafety()`、`restoreSwapFile()`（步驟失敗時 best-effort `mkswap`+`swapon`，不讓機器留在零 swap 狀態）；新增 `/proc/swaps` 與 `MemAvailable` 的純解析函數（`parseSwapEntries`、`parseSwapFileLocation`、`zramActiveIn`、`parseMemAvailableKB`、`swapMigrationFit`） |
+| `core/swap.go` | `DisableSwap()` → `swapoff <location>`（只關自己）；`ChangeSwapSize()` 移除 zram 重啟區塊與 `zramActive` 前置偵測（改為 resize 後若 zram 不見就 log `systemctl restart systemd-zram-setup@zram0.service` 警告）；新增 `resolveSwapFileLocation()`、`checkSwapMigrationSafety()`、`restoreSwapFile()`（步驟失敗時 best-effort `mkswap`+`swapon`，不讓機器留在零 swap 狀態）；新增 `/proc/swaps` 與 `MemAvailable` 的純解析函數（`parseSwapEntries`、`parseSwapFileLocation`、`zramActiveIn`、`parseMemAvailableKB`、`swapMigrationFit`） |
 | `core/sudo.go` | 新增 `runSudo()`：root 直接執行、非 root `sudo -S` + stdin 密碼（cached timestamp 導致 stdin 寫入 EPIPE 不計錯）；`commandError()` 把命令列 + 輸出 tail 帶進 error |
 | `core/config.go` | 新增 `ZramDevice`、`ZramSetupUnit`、`SwapMigrationMarginKB`（512 MB） |
 | `core/swap_test.go`（新） | 11 個測試（見下） |
@@ -194,3 +194,34 @@ active
 - `core/sudo.go`：`RenewAuth()`（`sudo -S -k`）、`TestAuth()`
 - `core/engine.go`：`GetStatusSummary()`、`getTotalSwapGB()`
 - `todo.md`：P0（ZRAM 支援，代碼層已完成但設計錯誤）、P0.7（本檔對應的修正項）
+
+## 10. 真機驗收結果（2026-10-20，Deck，方法 A binary）
+
+**結論：通過。改 swap size 不再讓 zram 失效。**
+
+測試 binary（與 §7 表同）：CLI `b030ec48…`、desktop `c77c6a53…`。
+
+操作：以 native UI 與 CLI 共執行 **四次** resize：`16 → 2 → 8 → 16 → 12 GB`。
+
+| 檢查 | resize 前 | resize 後（四次之後） |
+|---|---|---|
+| `/dev/zram0` 存在 | 是（PRIO **100**，7579644 kB） | **是**（PRIO **100**，7579644 kB，zstd） |
+| `/home/swapfile` | 16 GB（PRIO -2） | 12 GB（PRIO -2）✅ 如預期改變 |
+| `zramctl` | 7.2G zstd | 7.2G zstd（DATA 776M，zram 仍在被使用） |
+| `SwapTotal` | 24356856 kB | 20162552 kB（差值 4194304 kB = 4 GB = swapfile 16→12，**不含 zram**） |
+| `systemd-zram-setup@zram0.service` / `dev-zram0.swap` | active / active | **active / active** |
+| app log 提及 zram 的次數 | — | **0**（四次 resize 的 log 區段完全沒出現 zram） |
+| log 中 `swapoff -a` | — | **0** 次（只有 `Disabling swap on /home/swapfile temporarily...`） |
+| journal `--reset-device zram0` / `zram0: detected capacity change` | 16:33（舊 binary 造成）| 16:33 之後**再無新的** reset（16:42 是人工復原那次） |
+| `Failed to re-enable zram` | 16:34（舊 binary）| 最後一次即該次，新 binary **未再出現** |
+| log append 模式 | 舊版每次啟動清空 | 生效：舊 16:34 的記錄仍在（log 已累計 640 行） |
+| 原版 CryoUtilities | `~/.cryo_utilities/`（`cryo_utilities`、`cryoutilities.log`、launcher、png）| 內容不變；`~/.local/share/applications/` 三個原版 .desktop 未動 |
+
+### 尚未驗證的一項
+換頁安全檢查的**拒絕路徑**未觸發（這四次 resize 時 swap used 很低，檢查直接通過）。要驗它需要刻意把 swap used 拉高到超過
+`MemAvailable` + 其他 swap 剩餘容量，預期在 swapoff **之前**就被拒絕並印出原因（例如 `swap 2` 於 swap used 8 GB 時）。
+單測已用 Deck 實測數字覆蓋這個算式（`TestSwapMigrationFitSteamOSNumbers`），但真機行為仍未走過一次。
+
+### 後續決定
+- 方法 B（自動 `systemctl restart systemd-zram-setup@zram0.service`）降為可選、低優先：真機已證明不需要
+- P0（ZRAM 支援）與 P0.7 至此真機結案
