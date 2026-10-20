@@ -112,7 +112,7 @@
 - [x] Real Steam Deck acceptance testing (2026-08-11, CLI + Web UI basic smoke)
 - [x] Verify original CryoUtilities untouched (confirmed at `~/.cryo_utilities/`)
 - [x] CLI `status` command verified on real hardware (`SwapSizeGB: 16` ✅)
-- [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復（P0 代碼已合併未真機驗過，優先度高）
+- [ ] 真實 Deck 驗證 zram 狀態顯示與 swap resize 後 zram 恢復（P0 代碼已合併未真機驗過，優先度高）→ **2026-10-20 真機已驗：失敗，resize 會摧毀 zram（見 `todo.md` P0.7 與 `docs/zram-swapoff-reset.md`）；zram 狀態顯示本身正確，resize 恢復路徑待方法 A 重改後重驗**
 - [ ] All CLI commands verified on real hardware（`swappiness`、`recommended`、`stock`、`hugepages` 等，含 P0.5 後 `sudo` 執行 CLI 的 `Geteuid` 跳過路徑）
 - [ ] Web UI 視覺驗收（fallback 路徑，與 native 一次驗）
 - [ ] `steam://openurl` fallback 確認（次要；web 模式無瀏覽器可用時才走）
@@ -246,6 +246,33 @@
 - [x] `core/swap.go` — `GetSwapFileSize()` 行為保持不变（繼續只報告 swap file 大小）
 - [x] CLI `status` 命令新增 zram 狀態輸出
 - [x] `AGENTS.md` — Known Issues 更新（記錄 zram 行為與修正）
+
+> ⚠️ **本 Phase 的 zram 恢復設計是錯的**，實際會把 zram 摧毀 — 見下方 **P0.7**。
+
+---
+
+## P0.7: swap resize 摧毀 zram（根因已定位，**修法拍板 = 方法 A**，代碼待 Dev VM 施作）
+
+> **調查報告與根因實證：`docs/zram-swapoff-reset.md`**（2026-10-20 真機 journal 實證，含時序與單位名稱）。
+> 症狀：只要改 swap size，zram 就消失；`zramctl` 空、`/sys/block/zram0/disksize` = 0、總 swap 23 GiB → 16 GB。
+
+**根因一句話**：`core/swap.go:109` 的 `sudo swapoff -a` 會讓 systemd 把 zram **整套拆掉** —— `dev-zram0.swap` 轉 Deactivated →
+`systemd-zram-setup@zram0.service` 停止 → 其 `ExecStop=/usr/lib/systemd/system-generators/zram-generator --reset-device zram0`
+把 `disksize` 寫 0。之後 `core/swap.go:231` 的 `swapon /dev/zram0` 是對**容量 0 的裝置**操作，必然 EINVAL 失敗，且失敗被 `core/swap.go:232` 吞掉。
+**不會**自己回來（舊 P0 「等 systemd 掃描約 18 分鐘」的假設錯誤）；且第二次 resize 起 `GetZramStatus()` 已是 false → 連嘗試都不嘗試。
+
+### 方法 A 施作項（Dev VM）
+- [ ] `DisableSwap()`：`swapoff -a` → 只關 swap file 本身（`swapoff <e.SwapFileLocation>`）
+- [ ] 移除 `ChangeSwapSize()` 的 zram 重啟區塊（`core/swap.go:227-233`）與 `zramActive` 前置偵測（`core/swap.go:210`）
+- [ ] 新增換頁安全檢查：swapfile 的 `Used`（`/proc/swaps`）vs `MemAvailable`（`/proc/meminfo`），不足時明確報錯中止，避免 earlyoom/OOM（真機有 `earlyoom` 在跑）
+- [ ] swap 相關指令統一 `sudo -k` + 密碼 pipe（與 `core/sudo.go` 規則一致），並把 stderr 帶進 error message（現行全部 `.Output()` + 固定字串誤訊息，無法查證）
+- [ ] 可觀測性（方法 C）：log 改 `O_APPEND`，去掉 `cmd/cryoutilities/main.go:34` 與 `cmd/desktop/main.go:45` 的 `os.Remove(LogFilePath)`（或 CLI/desktop 分流不同 log 檔）
+- [ ] `core/` 單測：假 `/proc/swaps` 解析（swapfile Used、zram 行辨識）、安全檢查閾值邏輯
+- [ ] （可選，方法 B 安全網）必要時用 `systemctl restart systemd-zram-setup@zram0.service` 恢復，**絕不用**裸 `swapon /dev/zram0`
+- [ ] 驗收：`docs/zram-swapoff-reset.md` §7 逐項真機驗（zram0 在 resize 後仍存在且 Priority 100）
+
+### 真機已做的補救（2026-10-20，SteamOS 端）
+- [x] `systemctl restart systemd-zram-setup@zram0.service` 已把 zram 完整還原（disksize 7761559552、zstd、Priority 100、`SwapTotal: 24356856 kB`）
 
 ---
 
