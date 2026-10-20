@@ -125,32 +125,11 @@ func handleSwapResize(w http.ResponseWriter, r *http.Request, e *core.Engine, to
 	}
 
 	go func() {
-		emitProgress(fmt.Sprintf("Resizing swap to %d GB...", body.Size))
-		if err := e.RenewAuth(); err != nil {
+		// ChangeSwapSize owns the whole sequence (and the progress messages).
+		// Duplicating the steps here is what let the web path drift away from the
+		// CLI and native paths: the zram handling in core never applied to it.
+		if err := e.ChangeSwapSize(body.Size); err != nil {
 			emitProgress("Error: " + err.Error())
-			return
-		}
-		if err := e.DisableSwap(); err != nil {
-			emitProgress("Error disabling swap: " + err.Error())
-			return
-		}
-		emitProgress("Swap disabled, resizing...")
-		if err := e.ResizeSwapFile(body.Size); err != nil {
-			emitProgress("Error resizing: " + err.Error())
-			return
-		}
-		if err := e.RenewAuth(); err != nil {
-			emitProgress("Error: " + err.Error())
-			return
-		}
-		emitProgress("Setting permissions...")
-		if err := e.SetSwapPermissions(); err != nil {
-			emitProgress("Error setting permissions: " + err.Error())
-			return
-		}
-		emitProgress("Enabling swap...")
-		if err := e.InitNewSwapFile(); err != nil {
-			emitProgress("Error enabling swap: " + err.Error())
 			return
 		}
 		emitProgress("Swap resize complete.")

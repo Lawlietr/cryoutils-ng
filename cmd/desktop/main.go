@@ -41,9 +41,10 @@ func main() {
 	if err := os.MkdirAll(core.InstallDirectory, 0755); err != nil {
 		log.Panic(err)
 	}
-	// Set up logging
-	os.Remove(core.LogFilePath)
-	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	// Set up logging. Append instead of truncating: wiping the shared log on every
+	// start destroyed the evidence of an earlier failed run, which is how the zram
+	// teardown stayed hidden (docs/zram-swapoff-reset.md).
+	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -52,6 +53,16 @@ func main() {
 	// Create engine
 	e := core.NewEngine(logFile, logFile)
 	e.InfoLog.Println("Current Version:", core.CurrentVersionNumber)
+
+	// Forward core progress messages to the SSE channel the web UI reads.
+	// Non-blocking: if nobody is draining the channel the resize must not stall
+	// with swap switched off.
+	e.SetProgressCallback(func(msg string) {
+		select {
+		case core.ProgressChannel <- core.ProgressEvent{Message: msg}:
+		default:
+		}
+	})
 
 	// Parse CLI flags
 	var uiMode string

@@ -115,6 +115,20 @@ var AvailableSwappinessOptions = []string{"0", "1", "10", "25", "50", "60", "75"
 // SpaceOverhead The amount of space to keep available above the swapfile size, should prevent boot loops.
 var SpaceOverhead = 1 * GigabyteMultiplier // 1GB
 
+// ZramDevice The zram swap device SteamOS creates through zram-generator.
+// It must never be swapped off: see docs/zram-swapoff-reset.md.
+var ZramDevice = "/dev/zram0"
+
+// ZramSetupUnit The systemd unit that owns the zram device. Restarting it is the
+// only correct way to bring zram back if it ever goes missing.
+var ZramSetupUnit = "systemd-zram-setup@zram0.service"
+
+// SwapMigrationMarginKB Memory kept in reserve when checking that the pages held
+// by a swap file have somewhere to go before that swap file is turned off.
+// SteamOS runs earlyoom, which kills processes under memory pressure, so turning
+// swap off with too little destination room loses running applications mid-resize.
+var SwapMigrationMarginKB = 512 * 1024 // 512MB
+
 // GigabyteMultiplier Used to convert gigabytes to bytes.
 var GigabyteMultiplier = 1024 * 1024 * 1024
 

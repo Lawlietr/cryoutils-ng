@@ -17,9 +17,11 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -56,6 +58,77 @@ func (e *Engine) RenewAuth() error {
 		return fmt.Errorf("sudo authentication failed")
 	}
 	return nil
+}
+
+// runSudo runs a privileged command and returns its combined stdout+stderr.
+//
+// When the process is already root (e.g. the CLI launched via sudo) the command
+// runs directly, without a sudo wrapper. Otherwise sudo is called with -S and
+// the stored password is written to stdin; sudo with a cached timestamp never
+// reads stdin, so a write failure on the pipe is not treated as an error.
+//
+// Unlike the previous per-call exec.Command("sudo", ...).Output() sites, the
+// command line, the wait error and the command's own output are all reported.
+// Swap failures used to be reduced to fixed strings such as "error disabling
+// swap", which is why the zram teardown in docs/zram-swapoff-reset.md stayed
+// invisible for so long.
+func (e *Engine) runSudo(args ...string) (string, error) {
+	if len(args) == 0 {
+		return "", fmt.Errorf("runSudo: no command given")
+	}
+
+	if os.Geteuid() == 0 {
+		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			e.ErrorLog.Println(commandError(args, err, string(out)))
+		}
+		return string(out), commandError(args, err, string(out))
+	}
+
+	cmd := exec.Command("sudo", append([]string{"-S"}, args...)...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		e.ErrorLog.Println(err)
+		return "", err
+	}
+	if err := cmd.Start(); err != nil {
+		e.ErrorLog.Println(err)
+		return "", commandError(args, err, "")
+	}
+	// A write error here just means sudo never asked (cached timestamp).
+	if _, err := stdin.Write([]byte(e.Password + "\n")); err != nil {
+		_ = err
+	}
+	_ = stdin.Close()
+
+	err = cmd.Wait()
+	output := out.String()
+	if err != nil {
+		e.ErrorLog.Println(commandError(args, err, output))
+		return output, commandError(args, err, output)
+	}
+	return output, nil
+}
+
+// commandError builds an error that carries the command line and (the tail of)
+// its output, so a failure can actually be diagnosed. It returns nil when the
+// command succeeded.
+func commandError(args []string, err error, output string) error {
+	if err == nil {
+		return nil
+	}
+	detail := strings.TrimSpace(output)
+	if len(detail) > 400 {
+		detail = detail[len(detail)-400:]
+	}
+	if detail == "" {
+		return fmt.Errorf("%s: %v", strings.Join(args, " "), err)
+	}
+	return fmt.Errorf("%s: %v: %s", strings.Join(args, " "), err, detail)
 }
 
 // TestAuth verifies that the provided password is correct.

@@ -34,10 +34,10 @@ func main() {
 	if err := os.MkdirAll(core.InstallDirectory, 0755); err != nil {
 		log.Panic(err)
 	}
-	// Delete old log file
-	os.Remove(core.LogFilePath)
-	// Create a log file
-	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	// Append to the log instead of truncating it: wiping the shared log on every
+	// start destroyed the evidence of an earlier failed run
+	// (docs/zram-swapoff-reset.md).
+	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -45,6 +45,10 @@ func main() {
 
 	// Create engine with log output to file
 	e := core.NewEngine(logFile, logFile)
+	// Long operations (swap resize) report their steps on stdout.
+	e.SetProgressCallback(func(msg string) {
+		fmt.Println(msg)
+	})
 
 	// Print the current version as a test
 	e.InfoLog.Println("Current Version:", core.CurrentVersionNumber)
@@ -206,6 +210,10 @@ func main() {
 
 	// Run the command parser
 	if err := r.Run(); err != nil {
+		// Report failures on stderr as well as the log: safety refusals such as
+		// "refusing to turn off swap ..." are useless if they only land in a file
+		// the user has to go looking for.
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		e.ErrorLog.Println(err)
 		os.Exit(1)
 	}

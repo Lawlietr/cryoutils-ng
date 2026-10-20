@@ -2,7 +2,7 @@
 
 - **發現日期**：2026-10-20（真實 Steam Deck / SteamOS，用戶實測回報）
 - **嚴重性**：P0 —— 破壞 SteamOS 原廠記憶體架構，且**會自我固化**（一次壞掉後每次都不再嘗試恢復），只有重開機能回來了
-- **狀態**：根因已定位（有 journal 實證）；**修法已拍板 = 方法 A**，程式碼修正待回 Dev VM 施作
+- **狀態**：根因已定位（有 journal 實證）；**修法已拍板並已實作 = 方法 A**（Dev VM，2026-10-20，含 11 個迴歸單測）；**待 Deck 真機驗收**（見 §7，與 §9 實作紀錄）
 - **受影響版本**：現行 `core/swap.go`（含 Phase 6.6 binary，md5 `a9ab4bf61afd96397ee650ccf7b60817`）
 
 ---
@@ -136,7 +136,14 @@ active
 > 注意：`swapoff -a` 造成的 zram 消失**不是**「等 systemd 裝置掃描約 18 分鐘會自己回來」（舊 P0 階段的假設錯誤）。
 > 它不會自己回來，必須 `systemctl restart systemd-zram-setup@zram0.service` 或重開機。
 
-## 7. 驗收條件（回 Dev VM 改完後，真機要逐項驗）
+## 7. 驗收條件（方法 A 已實作；下列 binary 需逐項真機驗）
+
+待驗 binary（Dev VM，2026-10-20 build）：
+
+| binary | 建置方式 | md5 |
+|---|---|---|
+| `cmd/cryoutilities/cryoutils-ng` | `CGO_ENABLED=0` | `8a1481f0d5918652425e8b23a564a3b2` |
+| `cmd/desktop/cryoutils-ng-desktop` | `CGO_ENABLED=1` | `1db37575338dbf78cf05c4f857e6fd66` |
 
 - [ ] `sudo cryoutils-ng swap 16`（與現值相同）後：`/proc/swaps` **zram0 仍在**，Priority 仍為 **100**，Size 仍 7579644
 - [ ] `sudo cryoutils-ng swap 12` 再 `swap 16`：兩次都保持 zram 存在；`zramctl` 顯示 zstd / 7.2G
@@ -145,6 +152,40 @@ active
 - [ ] 提前把 swap used 拉高於 MemAvailable 時，resize **中止並報明原因**，而不是把系統壓到 earlyoom 殺程序
 - [ ] web UI / native UI / CLI `status` 的 `ZramActive` 在 resize 前後都為 true
 - [ ] 原版 CryoUtilities 不受影響（`~/.cryo_utilities/` 內容不變）
+
+## 9. 實作紀錄（方法 A，Dev VM，2026-10-20）
+
+### 改動
+| 檔案 | 內容 |
+|---|---|
+| `core/swap.go` | `DisableSwap()` → `swapoff <location>`（只關自己）；`ChangeSwapSize()` 移除 zram 重啟區塊與 `zramActive` 前置偵測（改為 resize 後若 zram 不见就 log `systemctl restart systemd-zram-setup@zram0.service` 警告）；新增 `resolveSwapFileLocation()`、`checkSwapMigrationSafety()`、`restoreSwapFile()`（步驟失敗時 best-effort `mkswap`+`swapon`，不讓機器留在零 swap 狀態）；新增 `/proc/swaps` 與 `MemAvailable` 的純解析函數（`parseSwapEntries`、`parseSwapFileLocation`、`zramActiveIn`、`parseMemAvailableKB`、`swapMigrationFit`） |
+| `core/sudo.go` | 新增 `runSudo()`：root 直接執行、非 root `sudo -S` + stdin 密碼（cached timestamp 導致 stdin 寫入 EPIPE 不計錯）；`commandError()` 把命令列 + 輸出 tail 帶進 error |
+| `core/config.go` | 新增 `ZramDevice`、`ZramSetupUnit`、`SwapMigrationMarginKB`（512 MB） |
+| `core/swap_test.go`（新） | 11 個測試（見下） |
+| `cmd/desktop/api.go` | `handleSwapResize` 從「自己重寫四步」改為只呼叫 `e.ChangeSwapSize()` |
+| `cmd/desktop/main.go` | log 改 `O_APPEND`（去掉 `os.Remove`）；`SetProgressCallback` → `core.ProgressChannel`（非阻塞 send） |
+| `cmd/cryoutilities/main.go` | log 改 `O_APPEND`；進度印 stdout；失敗同時印 **stderr** |
+
+### 測試（Dev VM，Go 1.26.10）
+- 變更前基準：`core` `go vet` clean、`go test ./...` ok（先確認再改）
+- 變更後：`go vet` clean（`core` 與 `CGO_ENABLED=1` 的 `cmd/desktop`）、`go test ./...` ok、swap 相關 **11 個 PASS，無 skip**
+- 關鍵迴歸測試（命令插樁：假 `swapoff/swapon/mkswap/dd/chmod` 寫入 PATH 記錄 argv）：
+  - `TestChangeSwapSizeNeverTurnsOffOtherSwap`：`swapoff` 只被叫一次且參數 == location；任何記錄行不得出現 `-a` 或 `zram`；順序 swapoff→mkswap→swapon
+  - `TestChangeSwapSizeResolvesLocationItself`：CLI 未預先解析 location 也必須自己找到，`dd` 不得拿到空 `of=`
+  - `TestChangeSwapSizeSurfacesCommandStderr`：失敗 error 必須含命令 stderr 原文
+  - `TestFailedResizeTriesToLeaveSwapOn`：`dd` 失敗後必須嘗試重新啟用 swap
+  - `TestSwapMigrationFit` / `TestSwapMigrationFitSteamOSNumbers`：用 Deck 實測數字（swapfile 8996248 kB used、zram 剩 1800 kB、MemAvailable 6932000 kB）驗證 resize 必須被**拒絕**
+  - `TestParseSwapFileLocationSkipsZram`：`/dev/zram0` 必須被 skip（不回傳、不報錯）
+
+### 環境限制（為何 Dev VM 不能端到端）
+- LXC（核心 `7.0.0-3-pve`）：`modprobe zram` → `Module zram not found in directory /lib/modules/...`
+- 無 `/dev/loop-control` / loop 裝置 → 無法用 loop+ext4 造 swap
+- `/home` 在 ZFS：`swapon: /home/swapfile: skipping - it appears to have holes`（`oflag=direct` 也無效）
+→ 真 swap 流程**只能在 Deck 驗證**；Dev VM 以插樁測試鎖定行為
+
+### 待辦
+- 安全檢查的拒絕訊息目前是 Go 字串（與其他進度訊息一致，未 i18n）；若要中文化需同步 `i18n/locales/*.json`
+- 真機通過後再決定要不要加方法 B（自動 `systemctl restart systemd-zram-setup@zram0.service`）
 
 ## 8. 相關檔案
 

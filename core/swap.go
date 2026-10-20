@@ -25,32 +25,145 @@ import (
 	"strings"
 )
 
+// swapEntry is one row of the /proc/swaps table.
+type swapEntry struct {
+	Filename string
+	Type     string
+	SizeKB   int64
+	UsedKB   int64
+	Priority int
+}
+
+// parseSwapEntries parses /proc/swaps content. The header row is skipped and any
+// row that does not have the five expected columns is ignored.
+func parseSwapEntries(content string) []swapEntry {
+	var entries []swapEntry
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	scanner.Scan() // skip header
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 5 {
+			continue
+		}
+		size, sizeErr := strconv.ParseInt(fields[2], 10, 64)
+		used, usedErr := strconv.ParseInt(fields[3], 10, 64)
+		priority, priorityErr := strconv.Atoi(fields[4])
+		if sizeErr != nil || usedErr != nil || priorityErr != nil {
+			continue
+		}
+		entries = append(entries, swapEntry{
+			Filename: fields[0],
+			Type:     fields[1],
+			SizeKB:   size,
+			UsedKB:   used,
+			Priority: priority,
+		})
+	}
+	return entries
+}
+
+// readSwapEntries reads the live /proc/swaps table.
+func readSwapEntries() ([]swapEntry, error) {
+	data, err := os.ReadFile("/proc/swaps")
+	if err != nil {
+		return nil, err
+	}
+	return parseSwapEntries(string(data)), nil
+}
+
+// parseSwapFileLocation returns the swap *file* from a /proc/swaps table.
+// Block devices (/dev/...) are skipped rather than treated as an error: on
+// SteamOS /dev/zram0 is a genuine swap entry and must not be mistaken for the
+// swap file, nor abort the scan.
+func parseSwapFileLocation(entries []swapEntry) string {
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Filename, "/dev/") {
+			continue
+		}
+		return entry.Filename
+	}
+	return ""
+}
+
+// zramActiveIn reports whether the zram device is present as a swap entry.
+func zramActiveIn(entries []swapEntry) bool {
+	for _, entry := range entries {
+		if entry.Filename == ZramDevice {
+			return true
+		}
+	}
+	return false
+}
+
+// parseMemAvailableKB returns MemAvailable in kB from /proc/meminfo content,
+// or -1 when the field is not present.
+func parseMemAvailableKB(content string) int64 {
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.HasPrefix(line, "MemAvailable:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			if kb, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+				return kb
+			}
+		}
+	}
+	return -1
+}
+
+// swapMigrationFit reports whether target can be swapped off without running out
+// of somewhere to put its pages: everything currently held by target must fit
+// into MemAvailable plus the free room of every other active swap entry, while
+// keeping marginKB of memory in reserve.
+//
+// A target that is not in the table at all needs nothing, so it always fits —
+// there is simply nothing to migrate.
+func swapMigrationFit(entries []swapEntry, target string, memAvailableKB, marginKB int64) (neededKB int64, destinationKB int64, fits bool) {
+	for _, entry := range entries {
+		if entry.Filename == target {
+			neededKB += entry.UsedKB
+			continue
+		}
+		if free := entry.SizeKB - entry.UsedKB; free > 0 {
+			destinationKB += free
+		}
+	}
+	if memAvailableKB >= 0 {
+		destinationKB += memAvailableKB
+	}
+	return neededKB, destinationKB, neededKB+marginKB <= destinationKB
+}
+
 // GetSwapFileLocation reads the current swap file from /proc/swaps.
 func (e *Engine) GetSwapFileLocation() (string, error) {
-	file, err := os.Open("/proc/swaps")
+	entries, err := readSwapEntries()
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Scan() // skip header
-
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) >= 3 && fields[0] != "Filename" {
-			location := fields[0]
-			if strings.HasPrefix(location, "/dev/") {
-				continue
-			}
-			return location, nil
-		}
+	if location := parseSwapFileLocation(entries); location != "" {
+		return location, nil
 	}
-
 	if doesFileExist(DefaultSwapFileLocation) {
 		return DefaultSwapFileLocation, nil
 	}
 	return "", fmt.Errorf("no swapfile found")
+}
+
+// resolveSwapFileLocation returns the swap file path, discovering it when a
+// caller (notably the CLI, which never queries status first) left it unset.
+// Without this, an unset SwapFileLocation makes ResizeSwapFile run
+// "dd of=" against nothing and swap operations target an empty path.
+func (e *Engine) resolveSwapFileLocation() (string, error) {
+	if e.SwapFileLocation != "" {
+		return e.SwapFileLocation, nil
+	}
+	location, err := e.GetSwapFileLocation()
+	if err != nil {
+		return "", err
+	}
+	e.SwapFileLocation = location
+	return location, nil
 }
 
 // GetSwappinessValue reads the current vm.swappiness value.
@@ -105,48 +218,68 @@ func (e *Engine) GetAvailableSwapSizes() ([]string, error) {
 	return validSizes, nil
 }
 
-// DisableSwap temporarily disables all swap.
+// DisableSwap turns off swap for the swap file only.
+//
+// It must not use "swapoff -a". On SteamOS that deactivates the generated
+// dev-zram0.swap unit, which stops systemd-zram-setup@zram0.service, whose
+// ExecStop runs "zram-generator --reset-device zram0" and writes 0 to
+// /sys/block/zram0/disksize — destroying the device outright. Nothing can
+// re-enable it afterwards with a plain swapon, and it does not come back on its
+// own; only a unit restart or a reboot restores it. Full write-up:
+// docs/zram-swapoff-reset.md
 func (e *Engine) DisableSwap() error {
-	e.InfoLog.Println("Disabling swap temporarily...")
-	_, err := exec.Command("sudo", "swapoff", "-a").Output()
+	location, err := e.resolveSwapFileLocation()
 	if err != nil {
-		return fmt.Errorf("error disabling swap")
+		return err
+	}
+	e.InfoLog.Println("Disabling swap on", location, "temporarily...")
+	if _, err := e.runSudo("swapoff", location); err != nil {
+		return fmt.Errorf("error disabling swap on %s: %v", location, err)
 	}
 	return nil
 }
 
 // ResizeSwapFile resizes the swap file to the given size in GB.
 func (e *Engine) ResizeSwapFile(size int) error {
-	locationArg := fmt.Sprintf("of=%s", e.SwapFileLocation)
-	countArg := fmt.Sprintf("count=%d", size)
-	e.InfoLog.Println("Resizing swap to", size, "GB...")
-	_, err := exec.Command("sudo", "dd", "if=/dev/zero", locationArg, "bs=1G", countArg, "status=progress").Output()
+	location, err := e.resolveSwapFileLocation()
 	if err != nil {
-		return fmt.Errorf("error resizing %s", e.SwapFileLocation)
+		return err
+	}
+	e.InfoLog.Println("Resizing swap to", size, "GB...")
+	if _, err := e.runSudo("dd", "if=/dev/zero", fmt.Sprintf("of=%s", location), "bs=1G", fmt.Sprintf("count=%d", size), "status=progress"); err != nil {
+		return fmt.Errorf("error resizing %s: %v", location, err)
 	}
 	return nil
 }
 
 // SetSwapPermissions sets swap file permissions to 0600.
 func (e *Engine) SetSwapPermissions() error {
-	e.InfoLog.Println("Setting permissions on", e.SwapFileLocation, "to 0600...")
-	_, err := exec.Command("sudo", "chmod", "600", e.SwapFileLocation).Output()
+	location, err := e.resolveSwapFileLocation()
 	if err != nil {
-		return fmt.Errorf("error setting permissions on %s", e.SwapFileLocation)
+		return err
+	}
+	e.InfoLog.Println("Setting permissions on", location, "to 0600...")
+	if _, err := e.runSudo("chmod", "600", location); err != nil {
+		return fmt.Errorf("error setting permissions on %s: %v", location, err)
 	}
 	return nil
 }
 
 // InitNewSwapFile runs mkswap and swapon on the current SwapFileLocation.
 func (e *Engine) InitNewSwapFile() error {
-	e.InfoLog.Println("Enabling swap on", e.SwapFileLocation, "...")
-	_, err := exec.Command("sudo", "mkswap", e.SwapFileLocation).Output()
+	location, err := e.resolveSwapFileLocation()
 	if err != nil {
-		return fmt.Errorf("error creating swap on %s", e.SwapFileLocation)
+		return err
 	}
-	_, err = exec.Command("sudo", "swapon", e.SwapFileLocation).Output()
-	if err != nil {
-		return fmt.Errorf("error enabling swap on %s", e.SwapFileLocation)
+	e.InfoLog.Println("Enabling swap on", location, "...")
+	if _, err := e.runSudo("mkswap", location); err != nil {
+		return fmt.Errorf("error creating swap on %s: %v", location, err)
+	}
+	// No explicit priority: the kernel gives the swap file the stock SteamOS
+	// value (-2) while zram keeps its own 100, which is exactly the pre-resize
+	// state — because this code path never touches zram at all.
+	if _, err := e.runSudo("swapon", location); err != nil {
+		return fmt.Errorf("error enabling swap on %s: %v", location, err)
 	}
 	return nil
 }
@@ -166,23 +299,13 @@ func (e *Engine) ChangeSwappiness(value string) error {
 	return e.writeUnitFile("swappiness", value)
 }
 
-// GetZramStatus returns true if /dev/zram0 is currently active as swap.
+// GetZramStatus returns true if the zram device is currently active as swap.
 func (e *Engine) GetZramStatus() (bool, error) {
-	file, err := os.Open("/proc/swaps")
+	entries, err := readSwapEntries()
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Scan() // skip header
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) >= 1 && fields[0] == "/dev/zram0" {
-			return true, nil
-		}
-	}
-	return false, nil
+	return zramActiveIn(entries), nil
 }
 
 // GetZramSizeBytes returns the zram disk size in bytes, or 0 if zram is not present.
@@ -198,40 +321,111 @@ func (e *Engine) GetZramSizeBytes() (int64, error) {
 	return size, nil
 }
 
+// checkSwapMigrationSafety refuses to turn the swap file off when the pages it
+// currently holds would not fit elsewhere. SteamOS runs earlyoom, which kills
+// processes under memory pressure, so an unguarded swapoff is a reliable way to
+// lose running applications in the middle of a resize.
+func (e *Engine) checkSwapMigrationSafety(location string) error {
+	entries, err := readSwapEntries()
+	if err != nil {
+		e.InfoLog.Println("Could not read /proc/swaps, skipping the migration safety check:", err)
+		return nil
+	}
+
+	memAvailableKB := int64(-1)
+	if data, err := os.ReadFile("/proc/meminfo"); err == nil {
+		memAvailableKB = parseMemAvailableKB(string(data))
+	} else {
+		e.InfoLog.Println("Could not read /proc/meminfo, skipping the migration safety check:", err)
+	}
+	if memAvailableKB < 0 {
+		e.InfoLog.Println("MemAvailable not reported by this kernel, skipping the migration safety check.")
+		return nil
+	}
+
+	neededKB, destinationKB, fits := swapMigrationFit(entries, location, memAvailableKB, int64(SwapMigrationMarginKB))
+	if neededKB == 0 {
+		return nil // nothing is held by this swap file, nothing to migrate
+	}
+	if !fits {
+		return fmt.Errorf(
+			"refusing to turn off swap on %s: %d MB in use, but only %d MB can receive it "+
+				"(free RAM plus other swap devices, keeping %d MB in reserve). "+
+				"Close some applications, or set a swap size at least as large as what is in use, then retry",
+			location, neededKB/1024, destinationKB/1024, SwapMigrationMarginKB/1024)
+	}
+	e.InfoLog.Printf("Swap migration check OK: %d MB in use, %d MB able to receive it", neededKB/1024, destinationKB/1024)
+	return nil
+}
+
+// restoreSwapFile re-enables swap on a best-effort basis after a step failed, so
+// an interrupted resize never leaves the machine with no swap at all.
+func (e *Engine) restoreSwapFile(location string) {
+	e.InfoLog.Println("Resize failed - attempting to re-enable swap on", location, "...")
+	if _, err := e.runSudo("mkswap", location); err != nil {
+		e.ErrorLog.Println("Best-effort mkswap failed:", err)
+	}
+	if _, err := e.runSudo("swapon", location); err != nil {
+		e.ErrorLog.Println("Best-effort swapon failed:", err)
+	}
+}
+
 // ChangeSwapSize changes the swap file to the specified size in GB.
-// After resizing, it re-enables zram if zram was active before swapoff.
+//
+// zram is deliberately never touched: only the swap file is turned off, so
+// zram keeps its capacity and its stock priority of 100 throughout. The earlier
+// design (swapoff -a followed by swapon /dev/zram0) both destroyed the device
+// and then tried to re-enable something with zero capacity, and it also handed
+// zram the kernel default priority instead of 100, which made even the
+// "successful" path useless. See docs/zram-swapoff-reset.md.
 func (e *Engine) ChangeSwapSize(size int) error {
+	if size < 1 {
+		return fmt.Errorf("invalid swap size %d GB", size)
+	}
 	if err := e.RenewAuth(); err != nil {
 		return err
 	}
 
-	// Remember zram state before disabling all swap
-	zramActive, _ := e.GetZramStatus()
+	location, err := e.resolveSwapFileLocation()
+	if err != nil {
+		return err
+	}
 
+	// Recorded only to warn if something else removed zram underneath us.
+	zramBefore, _ := e.GetZramStatus()
+
+	if err := e.checkSwapMigrationSafety(location); err != nil {
+		return err
+	}
+
+	e.emitProgress("Disabling swap on " + location + "...")
 	if err := e.DisableSwap(); err != nil {
 		return err
 	}
+
+	e.emitProgress(fmt.Sprintf("Resizing swap file to %d GB...", size))
 	if err := e.ResizeSwapFile(size); err != nil {
+		e.restoreSwapFile(location)
 		return err
 	}
-	if err := e.RenewAuth(); err != nil {
-		return err
-	}
+
 	if err := e.SetSwapPermissions(); err != nil {
+		e.restoreSwapFile(location)
 		return err
 	}
+
+	e.emitProgress("Enabling swap...")
 	if err := e.InitNewSwapFile(); err != nil {
 		return err
 	}
 
-	// Re-enable zram if it was active before swapoff
-	if zramActive {
-		e.InfoLog.Println("Re-enabling zram...")
-		if err := exec.Command("sudo", "swapon", "/dev/zram0").Run(); err != nil {
-			e.ErrorLog.Println("Failed to re-enable zram:", err)
-			// Don't return error — swap file is active, zram is a nice-to-have
+	if zramBefore {
+		if zramAfter, _ := e.GetZramStatus(); !zramAfter {
+			e.ErrorLog.Printf("zram swap (%s) is gone after the resize; restore it with: systemctl restart %s",
+				ZramDevice, ZramSetupUnit)
 		}
 	}
 
+	e.emitProgress("Swap resize complete.")
 	return nil
 }
