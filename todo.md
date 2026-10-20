@@ -288,6 +288,19 @@
 
 ---
 
+## P0.8: 真機 feedback 第二批（2026-10-20，已修，待真機驗收）
+
+- [x] **啟動 native UI 時被問兩次 sudo 密碼**（終端一次 + UI 對話框一次）— 根因是 `core/util.go` 四處舊的 `exec.Command("sudo", ...)` 沒有 `-S`，sudo 從 tty 問密碼；`getUnitStatus()` 的 `sudo cat` 在 status 卡片建立時就觸發。已全部改走 `runSudo()`；沒有密碼時回 `ErrNoSudoPassword`，完全不啟動 sudo。
+- [x] **native UI swap 下拉的 "Current Size" 不會跟隨真實大小**（要重開 app 才更新）— swap 卡片只建立一次；改為 `uiCtx.addRefresher()` + `Select.SetOptions` + `nextSwapSelection()`，5 秒 ticker 與操作完成後都會更新；swappiness placeholder 跟隨（僅在使用者沒輸入時）。
+- [x] `setUnitValue()` 原本吞掉所有錯誤、還把 `sudo tee` 輸出倒進 `os.Stdout`（寫入失敗看起來像成功）→ 改走 `runSudoWithInput()` 並回傳 error。
+- [x] 密碼解鎖後立即 `refreshStatus()`（原本要等 5 秒才把需要 root 的讀值補上）。
+- [ ] **真機驗收**（使用者）：新 binary md5 — CLI `85642ef7f01c10d6e79a7482767a454d`、desktop `a2bcd4bf0330ef8bc3f2fd2ed66a41bc`
+  - 啟動 native UI：終端**不再**出現 `[sudo] password for deck:`，只有 UI 對話框問一次
+  - 改完 swap size 後，下拉的 "Current Size" 應立即變成新值（不必重開 app）
+  - 從清單明確選一個大小（例如 8），5 秒後與 resize 後都應保持你選的項目（只要它還在選項裡）
+- [ ] （新 issue，未修）未解鎖時 unit 讀值顯示 `false` 而非 unknown；見 AGENTS.md Known Issues
+- [ ] （新 issue，未修）web UI 的 swap 大小清單寫死，未走 core 的 `GetAvailableSwapSizes()`
+
 ### 真機驗收（2026-10-20，Deck）
 - [x] 方法 A binary 真機通過：改 swap size 不再讓 zram 失效（四次 resize 2→8→16→12 GB，zram0 Priority 100 全程不動）
 - [ ] 換頁安全檢查的拒絕路徑尚未在真機觸發（需刻意把 swap used 拉高）

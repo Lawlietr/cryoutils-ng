@@ -11,11 +11,13 @@
 ## Working Rules (MANDATORY)
 - **禁止自行 commit / push**：任何 `git commit`、`git push`、`git tag` 必須等你明確指示才執行。你會在 Dev VM 與 SteamOS 之間頻繁切換測試，擅自推送可能覆蓋你的本地修改。
 - **工作前先確認環境**：每次任務開始時必須先用 `cat /etc/os-release | grep PRETTY_NAME` 確認當前在哪個環境，並回報給用戶。
-  - Dev VM (`a1` / `root@192.168.1.15`)：Ubuntu 24.04，有 Go + Node + 編譯工具
+  - Dev VM (`a1` / `root@192.168.1.15`，hostname `Code-Agent-01`)：Ubuntu 24.04.5，Go 1.26.10（`/usr/local/go/bin/go`）+ gcc（Fyne 的 CGO 需要）；**Node 目前未裝**（要重刻 web UI 時再裝）
   - SteamOS：rootfs 唯讀，無開發工具鏈，無 sshd，只接受預編譯二進位
   - **SteamOS 端禁止開發**（改程式碼/建置/測試，一律在 Dev VM 做）；但**直接修改 repo 內容（如文件）並 commit/push 是允許的**（2026-09-11 用戶澄清）
 - **二進位複製方向**：SteamOS 未啟用 sshd，Dev VM 無法 SSH 到 SteamOS。所有二進位複製都由 **SteamOS 主動執行 `scp` 從 Dev VM 拉取**（`scp root@192.168.1.15:/path/to/binary ~/.cryoutils_ng/`）。Dev VM 端編譯完成後只需報告結果，不嘗試推送。
 - **Go 路徑**：`go` 不在 agent 的 PATH 中（`.bashrc` 對非互動式 shell 無效）。**所有 Go 命令必須使用完整路徑**：`/usr/local/go/bin/go`。例如：`/usr/local/go/bin/go build -o cryoutils-ng ./cmd/cryoutilities`。
+- **特權命令單一入口（MANDATORY）**：所有需要 root 的外部命令一律走 `core.Engine.runSudo()` / `runSudoWithInput()`（`core/sudo.go`），**禁止**直接 `exec.Command("sudo", ...)`。理由不是風格：沒有 `-S` 的 sudo 會從 tty 問密碼，桌面 UI 因此變成「終端問一次 + 對話框再問一次」（2026-10-20 真機 feedback），而且 `.Output()` 丟掉 stderr 讓失敗無法查證。`runSudo` 在沒有密碼時直接回 `ErrNoSudoPassword`、**不會啟動 sudo**，所以也永不碰 tty。
+- **UI 即時更新規則**：native UI 的 status 卡片每 5 秒整塊重建；其他卡片（含下拉選單、輸入框）**必須**透過 `uiCtx.addRefresher()` 註冊就地更新，否則數值會 freeze 在啟動當時（swap 下拉的教訓，見 Known Issues）。
 - **Git 規範（MANDATORY）**：
   - **`.gitignore` 是單一來源**：任何不應該入版控的檔案，必須同時出現在 `.gitignore` 中。若發現檔案被追蹤但不應追蹤，**先更新 `.gitignore`，再執行 `git rm --cached <path>` 移除追蹤，然後才能 commit**。
   - **禁止追蹤的檔案類型**：
@@ -111,6 +113,10 @@ Project name confirmed: **CryoUtils NG**.
 ## Known Issues & Fixes
 - **Native UI sudo 多次詢問**（2026-09-11 真機發現，**已修正（2026-09-11，dev 端）**，真機驗收待用戶）：非 root 執行時，用戶回報啟動輸入一次後操作又被問一次。成因：(a) 啟動對話框延遲 200ms，用戶先點操作時 `runTask → ensure` 再開第二個對話框 → 疊開雙問；(b) `ui/fyneui/sudo_dialog.go` 為零呼叫死代碼，容易改錯路徑。修正：`authManager` 單對話框 flag + pending 佇列 + 刪死代碼；**啟動問密碼保留**（部分狀態讀取需 root）。另 Fyne v2.7.4 無 `SetScale()` API，4K scale 走 `FYNE_SCALE` env + 自 re-exec（Phase 6.6.2，dev 端完成）。
 - **`.gitignore` 遺漏 `node_modules/`**（2025-07-17，已修正）：`.gitignore` 缺少 `node_modules/` 與 `web/test-results/` 規則，導致 3707 筆 `web/node_modules/` + 1 筆測試結果檔案被錯誤追蹤並 commit。修正方式：在 `.gitignore` 加入 `node_modules/` 與 `web/test-results/`，執行 `git rm -r --cached web/node_modules web/test-results` 移除追蹤。此問題已記錄於 Working Rules 的 Git 規範中。
+- **啟動時問兩次 sudo 密碼**（native UI，2026-10-20 真機回報，**已修正 2026-10-20**）：`core/util.go` 殘留四處舊的 `exec.Command("sudo", ...)`（無 `-S`），sudo 直接從 tty 問密碼；啟動時 status 卡片 → `getUnitStatus()` 的 `sudo cat /proc/sys/...` 就會觸發終端提示，接著 UI 對話框走 `RenewAuth()`（刻意 `sudo -k`、不看 cache）再問一次。修法：這四處（`getUnitStatus`、`setUnitValue`、`replaceFile` 的 `sudo mv`、`removeFile` 的 `sudo rm`）改走 `runSudo()`/`runSudoWithInput()`，且沒有密碼時回 `ErrNoSudoPassword` 不啟動 sudo。真機 A/B（pty）：控制組 bare sudo 出現 `[sudo] deck 的密碼：`，新 CLI 以 deck 非 root 跑 `status` 完全無提示（132 ms）。**啟動問一次（UI 對話框）仍是鎖定的設計**，不是 bug。
+- **native UI swap 下拉不跟隨真實大小**（2026-10-20 真機回報，**已修正**）：status 卡片每 5 秒重建，swap 卡片只建立一次，`GetAvailableSwapSizesStr()` 的結果與 `SetSelected` 從啟動就 freeze，改完 size 後 "N - Current Size" 仍是舊值，要重開 app。修法：`uiCtx.refreshers` 註冊表（5 秒 ticker 與操作完成後都跑）+ `Select.SetOptions` + `nextSwapSelection()`（保留使用者明確挑選的項目，偽項目 "N - Current Size" 跟隨真實大小）；swappiness placeholder 一併跟隨。
+- **未解鎖時 unit 讀值顯示 `false`**（**未修，已知瑕疵**）：`getUnitStatus()` 在沒有密碼時回 `"nil"`，CLI/UI 把它呈現成 `false`（例如 `HugePages: false`）。實際意義是「不知道」，不是「已關閉」。要改成 unknown 需要同時動 CLI 輸出、web/native 的 `formatEnabled` 與 i18n 鍵。
+- **web UI 的 swap 大小清單是寫死的**（**未修，不一致**）：`web/src/App.tsx` 用 `['2','4','6','8','12','16','20','24','32']`，沒走 core 的 `GetAvailableSwapSizes()`（會依 `/home` 剩餘空間過濾、並標示 Current Size）。native 是正確來源；兩邊清單因此可能不同。
 - **Sudo cached timestamp bypass** (`core/sudo.go`): `sudo -S` 有 cached timestamp 時會忽略 stdin 密碼導致 `TestAuth` 永遠通過。修正：所有 `sudo` 指令加 `-k` flag 強制忘記 cache，`RenewAuth()` 回傳 `error` 並檢查空密碼。
 - **CLI sudo 執行時 RenewAuth 失敗** (`core/sudo.go`): CLI 以 `sudo` 執行時 `e.Password == ""`，`RenewAuth()` 因檢查空密碼而失敗，但實際操作會成功（已是 root）。**已修正（P0.5）**：`RenewAuth()` 新增 `os.Geteuid() == 0` 檢查，已為 root 時直接回傳 `nil`。
 - **Web UI 密碼層多餘** (`web/src/App.tsx`): Steam Deck 環境預設信任同機使用者，token 已提供 API 安全。**已修正（P0.5）**：移除密碼輸入 UI、`sudoLocked` 狀態與全部 `disabled={sudoLocked}` 條件，並同步移除 `web/src/api.ts` 的 `auth()`、`cmd/desktop/api.go` 的 `/api/auth` 端點、相關 CSS 與 locale 鍵。
