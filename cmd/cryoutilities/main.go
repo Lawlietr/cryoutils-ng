@@ -37,7 +37,10 @@ func main() {
 	// Append to the log instead of truncating it: wiping the shared log on every
 	// start destroyed the evidence of an earlier failed run
 	// (docs/zram-swapoff-reset.md).
-	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	// 0600, not 0666: a privileged command failure line carries the command stderr, and
+	// the `tee` payload echo used to put the sudo password in that line. The log must
+	// not be world-readable regardless.
+	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		log.Panic(err)
 	}

@@ -44,7 +44,7 @@ func main() {
 	// Set up logging. Append instead of truncating: wiping the shared log on every
 	// start destroyed the evidence of an earlier failed run, which is how the zram
 	// teardown stayed hidden (docs/zram-swapoff-reset.md).
-	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(core.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		log.Panic(err)
 	}

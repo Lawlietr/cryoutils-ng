@@ -83,6 +83,8 @@ cryoutils_ng.log
 *.exe
 cryoutils-ng
 cryoutils-ng-desktop
+# acceptance probe binary (source lives in tools/p09probe/, tracked)
+/tools/p09probe/p09probe
 
 # Node modules
 node_modules/
@@ -95,3 +97,7 @@ web/src/locales/
 
 # Local docs
 /docs/zram-howto.md
+
+# Local secrets (NEVER commit): ssh credentials for the real Steam Deck / Dev VM
+/.secrets
+.secrets/

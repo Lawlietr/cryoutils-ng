@@ -109,7 +109,12 @@ func (e *Engine) TogglePageLockUnfairness() error {
 
 func (e *Engine) SetHugePages() error {
 	e.InfoLog.Println("Enabling hugepages...")
-	_ = e.removeFile(NHPTestingFile)
+	// The original app removed /proc/sys/vm/nr_hugepages here. That can never
+	// work: procfs and sysfs entries cannot be unlinked, not even as root (the
+	// real Deck log shows `rm /proc/sys/vm/nr_hugepages: ... 拒絕不符權限的操作`).
+	// Dropping the attempt removes a guaranteed failing privileged call; freeing
+	// reserved huge pages would mean writing 0 to that file, which is a behaviour
+	// change and deliberately not taken here.
 	if err := e.setUnitValue("hugepages", RecommendedHugePages); err != nil {
 		return err
 	}

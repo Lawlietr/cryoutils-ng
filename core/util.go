@@ -113,8 +113,10 @@ func isSubPath(parent string, sub string) bool {
 func (e *Engine) writeFile(path string, contents string) error {
 	e.InfoLog.Println("Writing", path)
 
+	// The temp file lives in our own install directory, so removing it never needs
+	// root. Going through removeFile used to run `sudo rm` for it on every write.
 	tempPath := filepath.Join(InstallDirectory, "temp.txt")
-	_ = e.removeFile(tempPath)
+	_ = os.Remove(tempPath)
 	f, err := os.Create(tempPath)
 	if err != nil {
 		e.ErrorLog.Println(err)
@@ -135,11 +137,16 @@ func (e *Engine) writeFile(path string, contents string) error {
 	return nil
 }
 
+// removeFile deletes a path that may need root to remove.
+//
+// rm is called with -f: the revert path calls this for a tmpfiles.d conf that is
+// simply not there (nothing to revert), and rm without -f turns that into a
+// non-zero exit, which used to make a perfectly successful revert look broken.
 func (e *Engine) removeFile(path string) error {
 	e.InfoLog.Println("Removing", path)
-	_, err := e.runSudo("rm", path)
+	_, err := e.runSudo("rm", "-f", path)
 	if err != nil {
-		e.InfoLog.Println("Couldn't delete", path, ", likely missing.")
+		e.InfoLog.Println("Couldn't delete", path)
 	}
 	return err
 }
@@ -194,30 +201,52 @@ func removeElementFromStringSlice(str string, slice []string) []string {
 
 // getUnitStatus reads the current value of a kernel parameter.
 //
-// It goes through runSudo rather than a bare `sudo cat`: a bare sudo inherits the
-// terminal and prompts for the password on the tty, which is how the native UI
-// ended up asking twice (terminal prompt on startup, then the UI dialog).
-// Without a password it returns ErrNoSudoPassword instead of spawning sudo, so
-// the 5s status refresh stays quiet until the user unlocks in the UI.
+// It reads the file directly first. Every entry in the unit matrix is
+// world-readable on Linux (root-owned, mode 0644), so reading a status never
+// needs root: sending the read through sudo is what made the memory parameters
+// report as unknown in the web UI, where no password can be supplied at all, and
+// it wrote one failing sudo line per parameter into the log on every 5s refresh.
+//
+// sudo is kept as a fallback for the parameters that are not readable by an
+// ordinary user, and it goes through runSudo rather than a bare `sudo cat`: a
+// bare sudo inherits the terminal and prompts on the tty, which is how the native
+// UI ended up asking twice.
 func (e *Engine) getUnitStatus(param string) (string, error) {
-	var output string
-	cmd, err := e.runSudo("cat", UnitMatrix[param])
-	if err != nil {
-		return "nil", err
+	path := UnitMatrix[param]
+	if path == "" {
+		return "", fmt.Errorf("unknown parameter %q", param)
 	}
-	// This is just to get the actual value in units which present as a list.
-	if strings.Contains(cmd, "[") {
-		slice := strings.Fields(cmd)
-		for x := range slice {
-			if strings.Contains(slice[x], "[") {
-				output = strings.ReplaceAll(slice[x], "[", "")
-				output = strings.ReplaceAll(output, "]", "")
+	if data, err := unitFileReader(path); err == nil {
+		return parseUnitValue(string(data)), nil
+	} else if !errors.Is(err, os.ErrPermission) {
+		// The parameter does not exist on this kernel; sudo cannot fix that, so
+		// report it instead of paying for a privileged attempt.
+		return "", err
+	}
+	out, err := e.runSudo("cat", path)
+	if err != nil {
+		return "", err
+	}
+	return parseUnitValue(out), nil
+}
+
+// unitFileReader is the reader used for the unprivileged status reads. It is a
+// variable so a test can simulate a permission failure and prove the sudo
+// fallback still works.
+var unitFileReader = os.ReadFile
+
+// parseUnitValue reduces a kernel parameter file to its current value. List
+// style files (transparent hugepages, defrag) print every accepted value and
+// bracket the active one: "always madvise [never]" -> "never".
+func parseUnitValue(raw string) string {
+	if strings.Contains(raw, "[") {
+		for _, field := range strings.Fields(raw) {
+			if strings.HasPrefix(field, "[") {
+				return strings.Trim(field, "[]")
 			}
 		}
-	} else {
-		output = strings.TrimSpace(cmd)
 	}
-	return output, nil
+	return strings.TrimSpace(raw)
 }
 
 // writeUnitFile writes a tmpfiles.d conf to persist a kernel parameter.
