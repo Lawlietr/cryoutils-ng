@@ -309,6 +309,66 @@
 
 ---
 
+## P0.9: unit 參數不可偵測 / 不可用 + sudo 密碼外洩到 log（**2026-10-30 修正，已在 Deck 真機驗證**）
+
+> 真機 feedback：SteamOS 上 UI 的 **Huge Pages、Shared memory in THP、Compaction Proactiveness、HugePage Defrag、Page Lock Unfairness** 全部「不可偵測與不可用」——狀態永遠是 off/unknown，點了只彈錯誤。
+> 根因鏈與實證：`docs/unit-params-sudo-stdin.md`。
+
+### 根因（兩個獨立缺陷疊在一起，都在 P0.8 重構後浮現）
+
+**(a) 寫入壞 —— sudo 的密碼行被當成資料寫進系統參數**
+- `runSudoWithInput` 用 `sudo -S`（**沒帶 `-k`**）。sudo 只在「真的需要驗證」時讀 stdin；`RenewAuth`/`TestAuth` 剛在每個操作前驗證過 → timestamp 還有效 → sudo **完全不讀 stdin** → 整段 payload（第一行是明文 sudo 密碼）被 `tee` 當資料寫進 sysfs/procfs。
+- Deck log 實證（2026-10-20 17:56，desktop md5 `a2bcd4bf…`）：`tee /sys/kernel/mm/transparent_hugepage/enabled: exit status 1: <密碼>` 舆 `alwaystee: …: 不適用的引數`（EINVAL）；五個參數每一次 toggle 都是同一個形狀。
+- 結果：kernel 拒寫 → `tee` exit 1 → `setUnitValue` 回錯 → `runTask` 彈錯誤對話框 = **不可用**；toggle 沒成功、5 秒刷新讀到原值 = 看起來像**不可偵測**。
+- Dev VM 先用非 root 帳號（`lawliet`）+ 真實 sudo 重現：快取態下目標檔案 = `<密碼>\n<value>\n`；改用 `sudo -S -k` 後 = `<value>`。
+
+**(b) 讀取壞 —— 狀態讀取不需要 root 卻走了 root**
+- `getUnitStatus()` 走 `runSudo("cat", …)`，沒有密碼時（web 模式永遠沒密碼；native 未解鎖時也沒有）回 `ErrNoSudoPassword` → 五個 `get*Status()` 全部 false。
+- 真機 A/B（2026-10-30，同一台 Deck、同一指令 `cryoutils-ng status`，deck 身份、完全不給密碼）：
+  - 舊 binary：五項全 false，log 出現 5 行 `Unable to get current …`
+  - 新 binary：`HugePages: true / ShMem: true / CompactionProactiveness: false / Defrag: false / PageLockUnfairness: false`，**log 零錯誤行**；與 deck 直接 `cat` 的 kernel ground truth（`[always] madvise never` / `[advise]` / `1` / `20` / `5`）逐項吻合
+
+**(c) 兩個小項**：`rm` 沒帶 `-f`（revert 一個不存在的 tmpfiles.d conf 會被當成失敗）；`SetHugePages` 試圖 unlink `/proc/sys/vm/nr_hugepages`（procfs 檔案不能 unlink，root 也 EPERM；真機 log：`拒絕不符權限的操作`）。
+
+### 資安（同一批代碼的副作用）
+- [x] **明文 sudo 密碼曾被寫進 log**：`tee` 把輸入 echo 回 stdout，而該輸入第一行就是密碼；失敗時 `commandError` 又把它帶進 log。真機 `~/.cryoutils_ng/cryoutils_ng.log` 實測 **5 處**含密碼，而 log mode 原是 **0666（世界可讀）**
+- [x] 修正：`-k`（密碼永遠不會變成 payload）、stdout/stderr 分流（錯誤只帶 stderr）、`e.redact()` 抹掉字串中的密碼、兩支 main 的 `os.OpenFile` mode **0666 → 0600**
+- [x] 真機清理：既有 log 的 5 處已 scrub 成 `[REDACTED-PASSWORD]`，log `chmod 600`；修好後的 binary 跑完驗收 probe，log 内含密碼 **0 處**
+- [ ] **建議用戶更新 Deck 的 sudo 密碼**（它已在該機器的可讀 log 裡存在了 10 天）
+
+### 施作（Dev VM，2026-10-30）
+- [x] `core/sudo.go`：`runSudoWithInput` → **`sudo -S -k`**；stdout/stderr 分開 buffer；回傳值只用 stdout；錯誤帶 command line + **stderr** tail；新增 `e.redact()`；新增 `useSudoAlways` 測試錨點（讓 sudo 包裝路徑在 root 跑測試時也能被覆蓋）
+- [x] `core/util.go`：`getUnitStatus` 先用 `unitFileReader`（= `os.ReadFile`）直接讀，**只有 `EPERM` 才退回 sudo**；ENOENT（參數在此 kernel 不存在）不浪費一次特權嘗試；抽出 `parseUnitValue`（括號列表解析）；未知參數名明確報錯；`removeFile` → `rm -f`；`writeFile` 的暫存檔改用 `os.Remove`（它住在自己的 install 目錄，不該 `sudo rm`）
+- [x] `core/memory.go`：`SetHugePages` 拿掉對 `/proc/sys/vm/nr_hugepages` 的 unlink 嘗試（附註解；若要釋放已保留的 huge pages 應改成寫 0 —— **未採，屬行為變更，需用戶拍板**）
+- [x] `cmd/cryoutilities/main.go`、`cmd/desktop/main.go`：log mode 0666 → 0600
+
+### 測試（Dev VM；`core` 全綠）
+- [x] 新增 `core/unit_test.go`：`TestGetUnitStatusReadsWithoutRoot`（零 sudo 呼叫 + 列表/純數值解析）、`TestGetUnitStatusFallsBackToSudoWhenDenied`（模擬 EPERM → 仍走 sudo）、`TestParseUnitValue`、`TestRemoveFileToleratesAMissingPath`、`TestSetUnitValueReportsFailures`
+- [x] `core/sudo_test.go`：fake sudo 改為**重現 sudo 的 stdin 契約**（要驗證時才吃掉第一行密碼；有 `-k` 就一定驗證）→ 新增 `TestRunSudoWithInputNeverLeaksPasswordIntoTheCommand`、`TestRunSudoReturnsStdoutOnly`、`TestRunSudoFailureCarriesStderrButNotThePassword`；`TestRunSudoWithoutPasswordNeverSpawnsSudo` 改用 `useSudoAlways`（不再因 root 身份 skip）
+- [x] **三個回歸實驗**（把舊行為改回去，新測試必須紅）：去掉 `-k` → `parameter file = "<密碼>\nalways\n", want "always\n"`；合併 stdout/stderr → `output = "VALUE\nPROMPT_AND_NOISE\n", want only stdout`；讀值改回走 sudo → `getUnitStatus = "", sudo password not provided`
+- [x] `CGO_ENABLED=0 go vet`（core、`tools/p09probe`）✅ · `CGO_ENABLED=1 go vet ./cmd/desktop/...` ✅ · core `go test -count=1 ./...` 全過
+- [x] 新二進位 md5：CLI `9aea9457247ee108dbf2f2ef61e586eb`（6.2 MB）· desktop `d4558b4f3f68659a1afc81070d8f5bd0`（49.5 MB）· 驗收 probe `1243449416ecd67eaf961016b6d7c083`
+
+### 真機驗收（2026-10-30，Steam Deck `deck@192.168.1.232`，sshd 首次使用）
+- [x] 佈署前備份：`cryoutils-ng.bak-p08`、`cryoutils-ng-desktop.bak-p08`；推送後兩支 md5 與 Dev VM 一致
+- [x] **讀取 A/B**（deck 身份、無密碼）：舊 = 五項 false + 5 行 `Unable to get`；新 = 五項與 kernel ground truth 一致、零錯誤行
+- [x] **寫入 round-trip（`tools/p09probe`，以 deck 身份經真 sudo）**：五個參數各自 `Toggle()` 兩次 → 值確實改變並回到原值、`err=<nil>`；`Set()` 後 `/etc/tmpfiles.d/<param>.conf` 確實建立（tmpfiles.d 持久層正常）、`Revert()` 後值回 default、conf 被移除。**probe failures counted: 0**
+- [x] 收尾：probe 留下的 `hugepages.conf` / `shmem_enabled.conf` 已 `sudo rm -f`，`/etc/tmpfiles.d` 回空；kernel 值全數回原（`always` / `advise` / `20` / `1` / `5`）
+- [x] 副作用檢查：`/dev/zram0` 仍在（zstd、7.2G、[SWAP]）、swapfile 16 GB 未動、log 內密碼 0 處、log mode 600
+- [ ] **用戶驗收**：native UI 實際點擊五個 toggle（checkbox 即時反映、不再彈錯誤），與 Phase 6.6 的 4K/1280×800 驗收一同做
+
+### 本輪留下的新待辦
+- [ ] （新 issue，未修）**VRAM 讀值不穩定**：ssh session 下 `status` 報 `VRAM: 100MB`，真機 log 曾是 `Found a VRAM of 1024` —— `GetVRAMValue()` 依賴 `glxinfo`，無 X session / 拿到 llvmpipe 時就會錯。要嘛偵測 session，要嘛讀不到時顯示 unknown
+- [ ] （新 issue，未修）**web 模式寫入一律失敗**（`e.Password` 恒空，P0.5 已移除密碼入口）：讀取現在正常，寫入仍限 native UI 或 root CLI。是否補回 web 密碼入口是獨立決策
+- [ ] （未變）log 噪音與無 rotation（P0.8 那項）：六個 unit 參數的失敗行已消失（每輪少約 5 行），但 swap/swappiness/VRAM 與 `Available Swap Sizes` 仍每 5 秒寫
+
+### 環境注記（2026-10-30）
+- [x] SteamOS 真機已開 sshd（`deck@192.168.1.232`）→ Dev VM 可直接查證/佈署（見 AGENTS.md Working Rules）。憑證存 repo 根 `.secrets`（mode 600、已加入 `.gitignore`，**絕不 commit**）
+- [x] 真機 kernel `7.2.7-valve2-2-neptune-72-g31504582a073`；六個 unit 路徑全部存在且 `0644 root:root`（所以「讀值不需 root」成立）；`/` 掛載為 `rw`（所以 `writeUnitFile` 的 `sudo mv` 能成功，tmpfiles.d 可用 —— 但 SteamOS 更新會蓋掉 rootfs 內容，持久化的 conf 可能需要 `atomic-update-keep`，待驗證）
+- [x] Dev VM 磁碟：`/` 可用 18G（44% 使用）
+
+---
+
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
 - [ ] Python shim calling CLI binary (`main.py`, `plugin.json`)
