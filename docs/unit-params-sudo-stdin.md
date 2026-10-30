@@ -77,7 +77,7 @@ ERROR Unable to get current page_lock_unfairness
   - 成功 → 直接解析（**不碰 root**）
   - `EPERM` → 才退回 `runSudo("cat", path)`
   - 其他錯誤（例如 ENOENT，參數在此 kernel 不存在）→ 直接回報，不浪費一次特權嘗試
-- 抽出 `parseUnitValue()`：列表型 sysfs（`always madvise [never]` → `never`）與純數值两条分支，並加單元測試。
+- 抽出 `parseUnitValue()`：列表型 sysfs（`always madvise [never]` → `never`）與純數值兩個分支，並加單元測試。
 - 未知參數名稱明確報錯（原本會 `UnitMatrix[param]` 拿到空字串然後 `cat ""`）。
 - `removeFile()` 改用 **`rm -f`**：revert 一個不存在的 `/etc/tmpfiles.d/<param>.conf` 不該被當成失敗。
 - `writeFile()` 的暫存檔（在自己 install 目錄內）改用 `os.Remove`，不再為它跑一次 `sudo rm`。
@@ -96,7 +96,7 @@ ERROR Unable to get current page_lock_unfairness
 
 - `tee` 會 echo 它的 stdin，而那份 stdin 的第一行是 **明文 sudo 密碼**；失敗時 `commandError()` 又把輸出帶進 log → 真機 log 內測得 **5 處**含密碼，且 log mode 是 **0666**。
 - 已在真機處理：5 處替換成 `[REDACTED-PASSWORD]`；`chmod 600`。
-- 修好後的 binary 跑完完整驗收（見 §6），log 内含密碼 **0 處**。
+- 修好後的 binary 跑完完整驗收（見 §6），log 內含密碼 **0 處**。
 - **仍建議更新 Deck 的 sudo 密碼**：它已在這台機器上一份可讀檔案裡存在了約 10 天。
 
 ---
@@ -165,3 +165,122 @@ fake sudo 重寫成**重現 sudo 的 stdin 契約**：只有「真的需要驗�
 4. **`tee` 會 echo 它的輸入**：用它寫值時，stdout 不是診斷資訊；而且只要 stdin 裡出現過敏感字串，就可能被 echo 進 log。任何錯誤字串進 log 前要 redact。
 5. **procfs/sysfs 不能 unlink**（root 也不行）。要重設就寫值，不要 `rm`。
 6. 同一次重構把「讀」和「寫」一起搬進同一個 helper 時，要**分開驗證讀取與寫入**：swap 那批不吃 stdin 所以沒事，unit 那批吃 stdin 所以全壞 —— 只驗 swap 不足以證明重構無副作用。
+
+---
+
+# 8. P0.10（同日晚）：Huge Pages「每次重啟後取消勾選」
+
+## 8.1 現象
+
+用戶：Memory 五項已可按，但 **HUGE PAGES 每次重啟 app 後都變成未勾選**，認為不正常。
+
+## 8.2 主因（已修）：Fyne 的 `SetChecked()` 會回呼 `OnChanged`
+
+Fyne v2.7.4 `widget.Check.SetText()` 內部直接 `Refresh()` → `Refresh()` 會呼叫
+`OnChanged(old, checked)`（`check.go`：`oldChecked := c.Checked … if f := c.OnChanged; f != nil { f(oldChecked, c.Checked) }`）。
+我們的 `sectionsMemory()` 在**建立卡片時**就把真實狀態推进 checkbox：
+
+```go
+cb.SetChecked(sum[d.stateKey] == "true")   // ← 這一行本身觸發了一次 ToggleXxx()
+```
+
+於是 app 一啟動（以及每次 5 秒刷新重建 memory 卡片時），**凡是已經处在 recommended 值的參數，都被 app 自己翻掉一次**。
+Huge Pages 在 SteamOS 上出廠就是 recommended（`always`），所以每次啟動都被自動「關掉」，用戶看到的就是一直取消勾選。
+
+**真機實證**（Deck `~/.cryoutils_ng/cryoutils_ng.log`）：
+
+```
+19:39:50  （app 啟動，status 讀值）
+19:39:56  Disabling hugepages...  /  Writing madvise for param hugepages  /  Removing /etc/tmpfiles.d/hugepages.conf
+19:40:24  Enabling hugepages...   ← 這才是用戶的第一下（Enable 表示當時已被 app 關掉）
+```
+
+**單元測試重現**（`ui/fyneui/memory_state_test.go` → `TestMemorySectionBuildNeverTogglesAnything`）：
+只建卡片、不碰任何滑鼠，fake sudo 就被打進來：
+
+```
+FAIL: building the memory card ran privileged commands: -S -k tee …/hugepages
+```
+
+把 `syncing` 守衛拿掉 → 紅；加回來 → 綠。這是本輪唯一能把該 bug 在 unit 層重現的測試。
+
+**同一類呼叫點已全數稽核**（`OnChanged` 型別）：
+
+| 呼叫點 | 是否觸發回呼 | 後果 |
+|---|---|---|
+| `sectionsMemory` 的五個 `Check.SetChecked` | 是 | **會做特權寫入** → 已加 `syncing` 守衛 |
+| `sectionsSwap` 的 `Select.SetSelected`（`updateSelected` 無條件呼叫 `OnChanged`） | 是 | 該 select 的回呼是空函式，尺寸是在按「調整」時才讀 `Selected` → 無害 |
+| `sectionsGameData` 兩個 `SetSelected` | 是 | 回呼也是空函式 → 無害 |
+| `app.go` 語言 `SetSelected(code)` | 是 | 回呼內有 `if s == "" || s == code { return }` → 不會自我重建 |
+| `Entry.OnChanged`（swappiness） | `SetText` 會觸發 | 我們只呼叫 `SetPlaceHolder`，不 `SetText` → 無觸發 |
+
+規則：**任何「把外部狀態推进 widget」的程式碼都要自我守衛**（flag 或「與現值相同即 return」），
+而且啟動/刷新路徑上不允許出現特權寫入；用 fake sudo 記錄呼叫，讓「建卡片就寫系統」能被測試抓到。
+
+## 8.3 次因（已測得數據，**不改語意**）：持久化與 SteamOS 出廠值不對稱
+
+在真機（2026-10-30，開機 2026-10-27、`/etc/tmpfiles.d` 沒有我們的檔案、`/proc/cmdline` 完全沒有
+`transparent_hugepage=` 參數）實測五個參數的**開機值**：
+
+| 參數 | SteamOS 開機值 | 本 app 的 recommended | 本 app 的 stock/default |
+|---|---|---|---|
+| `transparent_hugepage/enabled` | **always** | always | madvise（上游 kernel 預設） |
+| `transparent_hugepage/shmem_enabled` | **advise** | advise | never |
+| `vm/compaction_proactiveness` | 20 | 0 | 20 |
+| `khugepaged/defrag` | 1 | 0 | 1 |
+| `vm/page_lock_unfairness` | 5 | 1 | 5 |
+
+`Set` 會寫 conf、`Revert` 會**刪** conf，所以「關掉 THP」只改 runtime，重開機又被 Valve 的出廠值蓋回 `always`。
+這正是 P0.10 原本要處理的「不對稱」。
+
+**曾評估把 `DefaultHugePages` 改成 `always`（讓 stock == 出廠值），並已寫成測試，隨後否決**，理由是新讀到的事實：
+`DefaultHugePages` 是 `hugepages disable` 與 Stock 預設**寫进去的值**；改成 `always` 之後那些命令會回報成功但什麼都不改，
+而且「把 THP 關掉」這個功能在此 app 裡直接消失。因此：
+
+- `Default*` 維持上游 kernel 預設（`madvise` / `never` / 20 / 1 / 5），並在 `core/config.go` 寫下上面那張實測表；
+- `Recommended*` 與 SteamOS 實際出貨值對齊（`TestRecommendedValuesMatchWhatSteamOSShips` 同時鎖住兩側：
+  recommended 必須等於出貨值、stock 必須維持上游值，兩側任一被改都會紅）；
+- 辨識問題改由「**顯示真實值**」解決（見 8.4）；
+- 「用戶明確關掉的選擇要不要也持久化（重開機後仍保持關閉）」属於產品決策，見 `todo.md` P0.10，未擅自實作。
+
+## 8.4 已做：狀態顯示改成「真實值 + 由 recommended 推導的判斷」
+
+- `core/util.go`：新增 `UnitState{Value, IsRecommended}` 與 `GetUnitStates()`，**單趟**讀完五個參數
+  （舊 `GetStatusSummary()` 對每個參數再呼叫一次 `getUnitStatus()`，等於每次 5 秒刷新多 spawn 6 次 sudo）；
+  讀不到時 `Value = "unknown"`，不再把「不知道」壓成 `false`。
+- `GetStatusSummary()` 额外帶 `<Param>Value` 五個鍵 → CLI `status` 直接印出（`HugePagesValue: madvise` …）。
+- native（`ui/fyneui`）：Status 卡顯示 `大記憶體頁面: madvise` 這種「標籤: 值」；Memory 五個 checkbox 的標籤帶當前值，
+  checkbox 本身**由真實狀態驅動**（5 秒 refresher 就地更新 + `syncing` 守衛），不再是啟動時寫死。
+- web（`web/src/`）：`StatusData` 帶五個 `*Value`、`MEMORY_VALUE_KEYS` 對照表；Status 卡在 Recommended/Default 後面
+  以 `· <值>` 顯示；Memory 區塊每列顯示真實值；讀不到時顯示 i18n 新鍵 `status.unknown`（en/zh-TW 皆補）。
+- 測試：`TestMemorySectionFollowsTheKernel`（值與勾選都要跟著 kernel，且換算後不得等於 `recommended`）、
+  `TestMemorySectionBuildNeverTogglesAnything`（建卡片不得碰特權命令）。
+
+## 8.5 驗收結果
+
+**Dev VM（Xvfb 1280×800，zh-TW，root）**：native UI 截圖確認 Status 與 Memory 兩處都帶值
+（這台機器是 `madvise / never / 20 / 1 / 5`，五項全部未勾選 = 正確解讀），且該次執行 log 內
+`Writing … for param` **0 次**、`sudo` 0 次 —— 即「啟動自動翻參數」在真實 app 裡已消失。
+
+**Deck 真機（`~/.cryoutils_ng/cryoutils-ng` md5 `ab30ddf1…`、desktop `30078b7d…`）**：`p09_check.sh` 已擴充
+§2「app 的 value 必_equals kernel ground truth、boolean 由 recommended 推導」、§3「五個 `*Value` 鍵存在」、
+§5「app 開著不動 22 秒內不得寫任何參數」，結果：
+
+```
+hugepages                kernel=madvise  appValue=madvise  appBool=false (bool 應=false)
+shmem_enabled            kernel=advise   appValue=advise   appBool=true  (bool 應=true)
+page_lock_unfairness     kernel=1        appValue=1        appBool=true  (bool 應=true)
+khugepaged_defrag        kernel=0        appValue=0        appBool=true  (bool 應=true)
+compaction_proactiveness kernel=0        appValue=0        appBool=true  (bool 應=true)
+RESULT: 全部 PASS
+```
+
+zram0（Priority 100）、swapfile 16 GB、原版 `~/.cry_utilities` 皆未受影響；log mode 600、密碼殘跡 0 處。
+
+## 8.6 教訓（併入第 7 節）
+
+7. **UI toolkit 的 setter 可能回呼自己的變更事件**（Fyne：`Check.SetChecked`/`SetText`、`Select.SetSelected` 都算）。
+   「把狀態同步進 widget」與「從 widget 接受使用者輸入」必須可區分，否則同步動作本身就是操作。
+8. **預設值有兩種語意**：「上游 kernel 的預設」與「這個發行版出貨時的值」。兩者不同時，`revert`/`stock` 到底還原哪一個
+   必須先講明，而且不能只靠改常數解決——它同時決定了 `disable` 這類命令還有沒有作用。
+9. **「不知道」不能壓成 false**：讀取失敗要有 `unknown` 表示，否則 UI 會把未知呈現成一個明確的結論。
