@@ -23,6 +23,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
+	"cryoutils-ng/core"
+
 	"cryoutils-ng/i18n"
 )
 
@@ -39,11 +41,33 @@ func sectionsStatus(c *uiCtx) fyne.CanvasObject {
 	swappiness := widget.NewLabel(fmt.Sprintf("%s: %s", lang.T("status.swappiness"), sum["Swappiness"]))
 	vram := widget.NewLabel(fmt.Sprintf("%s: %s", lang.T("status.vram"), sum["VRAM"]))
 
-	// Two-column grid: 7 key/value rows collapse to 4 rows (4K readability).
+	// The five memory parameters are shown as the raw value the kernel holds,
+	// next to the checkboxes in the memory card that say whether that value is
+	// the recommended one. Showing the value is what makes "recommended",
+	// "stock default" and "could not read" distinguishable on screen.
+	unitRows := []struct{ labelKey, valueKey string }{
+		{"memoryParams.hugepages", "HugePagesValue"},
+		{"memoryParams.shmem", "ShMemValue"},
+		{"memoryParams.compaction_proactiveness", "CompactionProactivenessValue"},
+		{"memoryParams.defrag", "DefragValue"},
+		{"memoryParams.page_lock_unfairness", "PageLockUnfairnessValue"},
+	}
+	extra := make([]fyne.CanvasObject, 0, len(unitRows))
+	for _, u := range unitRows {
+		value := sum[u.valueKey]
+		if value == core.ValueUnknown || value == "" {
+			value = lang.T("status.unknown")
+		}
+		extra = append(extra, widget.NewLabel(fmt.Sprintf("%s: %s", lang.T(u.labelKey), value)))
+	}
+
+	// Two-column grid: key/value rows collapse into half as many lines (4K readability).
 	grid := container.NewGridWithColumns(2,
-		swapFile, swapSize,
-		zramSize, zramActive, totalSwap,
-		swappiness, vram,
+		append([]fyne.CanvasObject{
+			swapFile, swapSize,
+			zramSize, zramActive, totalSwap,
+			swappiness, vram,
+		}, extra...)...,
 	)
 
 	return widget.NewCard(lang.T("status.title"), "", grid)
