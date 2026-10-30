@@ -9,9 +9,11 @@
 //
 //	CGO_ENABLED=0 /usr/local/go/bin/go build -o tools/p09probe ./tools/p09probe
 //
-// Run on the Deck:
+// Run on the Deck (it asks for the sudo password itself, input not echoed):
 //
-//	echo '<sudo password>' | ./p09probe
+//	~/.cryoutils_ng/p09probe
+//
+// A scripted run also works: `echo '<password>' | p09probe`.
 //
 // It always puts the values back the way it found them.
 package main
@@ -20,6 +22,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"cryoutils-ng/core"
@@ -55,10 +58,46 @@ func current(path string) string {
 	return s
 }
 
+// readPassword pulls the sudo password out of stdin when something is piped
+// in (scripted runs), otherwise it prompts on the terminal with echo turned off
+// through `stty`. Both paths end with the same string; nothing is ever written
+// to disk. The earlier version only read stdin, so typing the command by hand
+// looked like a hang with no output at all.
+func readPassword() string {
+	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
+		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cannot open /dev/tty; pipe the password in instead: echo '<password>' | p09probe")
+			return ""
+		}
+		defer tty.Close()
+		fmt.Fprint(os.Stderr, "sudo password (input hidden): ")
+		if c := exec.Command("stty", "-echo", "-F", "/dev/tty"); c.Run() != nil {
+			// Older stty without -F: drive it through the tty as stdin instead.
+			c := exec.Command("stty", "-echo")
+			c.Stdin = tty
+			c.Run()
+		}
+		pw, _ := bufio.NewReader(tty).ReadString('\n')
+		fmt.Fprintln(os.Stderr)
+		e := exec.Command("stty", "echo", "-F", "/dev/tty")
+		if e.Run() != nil {
+			e = exec.Command("stty", "echo")
+			e.Stdin = tty
+			e.Run()
+		}
+		return strings.TrimRight(pw, "\r\n")
+	}
+	pw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	return strings.TrimRight(pw, "\r\n")
+}
+
 func main() {
-	reader := bufio.NewReader(os.Stdin)
-	pw, _ := reader.ReadString('\n')
-	pw = strings.TrimRight(pw, "\r\n")
+	fmt.Println("CryoUtils NG P0.9 acceptance probe - five unit parameters, real sudo, values restored at the end.")
+	pw := readPassword()
+	if pw == "" {
+		fmt.Println("no password read; every privileged step will be refused (err=sudo password not provided)")
+	}
 
 	e := core.NewEngine(os.Stderr, os.Stderr)
 	e.Password = pw
