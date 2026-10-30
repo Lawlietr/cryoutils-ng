@@ -151,6 +151,8 @@ fake sudo 重寫成**重現 sudo 的 stdin 契約**：只有「真的需要驗�
 
 **副作用檢查**：`/dev/zram0` 仍在（zstd、7.2G、`[SWAP]`，Priority 未變）、swapfile 16 GB 未動、log 內密碼 0 處、log mode 600。
 
+**已完成（同日晚）**：用戶在 Deck 上實際點擊五個 toggle —— 不再彈錯誤對話框、可按、`p09_check.sh` 全部 PASS。同時帶出 P0.10 三項（Huge Pages 在 SteamOS 上的預設/持久化不對稱、memory checkbox 未接 refresher、驗收工具會動 tmpfiles conf）。
+
 **還差**：用戶在 native UI 實際點五個 toggle（checkbox 即時反映、不再彈錯誤）—— 與 Phase 6.6 的雙解析度驗收一同做。
 
 ---

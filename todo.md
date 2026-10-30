@@ -369,6 +369,39 @@
 
 ---
 
+## P0.10: 真機 feedback 第三批（2026-10-30，驗收當天）
+
+> 用戶在 Deck 上跑完 P0.9 驗收後的三則回報：`p09_check.sh` 全 PASS；`p09probe` 那條命令跑不出東西；Memory 五項已可按，但 **Huge Pages 每次重啟後都會取消勾選**（用戶認為不正常）。另要求補入原版的「亮綠燈」視覺（用戶明示**暫不處理**，只補 TODO）。
+
+### 已處理
+
+- [x] **`p09probe` 跑不出東西**（我的工具問題，不是 app）：舊版只從 stdin 第一行讀密碼，且**在讀之前不印任何東西**，所以她那條 `read -rs PW && printf ... | p09probe` 看起來像整個卡住、沒有輸出。修正 `tools/p09probe/main.go`：進場先印 banner；stdin 是 tty 時改向 `/dev/tty` 提示並用 `stty -echo` 關掉回顯（自己問密碼）；有管線時仍讀 stdin（我腳本化的用法不變）。真機兩種路徑都驗過：pipe → `failures counted: 0`；pty → 出現 `sudo password (input hidden): `。新 md5 `19d63b4ba15c6c77a05d94b4755be67b`（已佈署到 Deck）
+- [x] **Huge Pages「取消勾選」查證：不是持久化 bug**。log 實證（`~/.cryoutils_ng/cryoutils_ng.log`，19:39:56–19:43:14）她在 3.5 分鐘內點了 **7 次** Huge Pages，每一次都成功：`Enabling hugepages → Writing always → Writing always to /etc/tmpfiles.d/hugepages.conf`；`Disabling hugepages → Writing madvise → Removing /etc/tmpfiles.d/hugepages.conf`。奇數次 → 最後停在 off，所以重開 app 顯示未勾選是**正確讀值**
+- [x] **驗收工具副作用已收尾**：probe 的 `Set()` 會建 conf、`Revert()` 會刪 conf。她按出來的三個（`compaction_proactiveness.conf`=0、`defrag.conf`=0、`page_lock_unfairness.conf`=1）保留；probe 多建的 `shmem_enabled.conf` 我已 `rm -f`。收尾後狀態 = 她的意圖：`thp=madvise / shmem=advise / defrag=0 / comp=0 / pl=1 / swappiness=60`，swapfile 16 GB 與 zram0 未動
+
+### 真正的三個缺口（要動代碼/要拍板，未處理）
+
+- [ ] **SteamOS 的 THP 開機預設是 `always`，不是 `madvise`**（本機 2026-10-27 開機、`/etc/tmpfiles.d` 全空情況下實測 `[always] madvise never`）。後果有兩個：
+  - app 啟動時 Huge Pages 本來就是**勾選**狀態，她第一次按下去其實是 **關閉**（log 19:39:56 第一行就是 `Disabling hugepages...`）。「勾選 = 我要啟用」的 checkbox 直覺在這裡是反的
+  - `DefaultHugePages = madvise`（沿用上游 CryoUtilities）與 kernel boot 預設 `always` 不一致，而 **Revert 的語意是「寫 runtime 值 + 刪除 conf」**，所以「關閉」不會跨重開機：重開機後 THP 又回到 `always` → checkbox 又變回勾選。她感覺到的「每次重啟都不一樣」就是這個振盪（另外四個參數的 Default 值剛好等於 kernel 預設，所以只有 hugepages 有這個問題）
+- [ ] **Memory 五個 checkbox 沒有接 `addRefresher`**（`ui/fyneui/sections_memory.go`）：5 秒 ticker 只更新 status 卡片，checkbox 只在「建立當時」與「自己點完之後」設值。真實值被外部改動、或 task 失敗時，UI 會與 kernel 不同步。修法 = P0.8 swap 下拉同一個 `uiCtx.addRefresher()` 模式，但只在 `updating == false` 時同步，避免把使用者正在進行的操作蓋掉。驗收方式：headless Fyne（`test` package）對 checkbox 打兩下，斷言 `ToggleXxx` 各被呼叫一次、`Checked` 等於真實狀態、task 進行中的重複點擊不會第二次觸發
+- [ ] **Revert 是否應該持久化（需用戶拍板，三選一）**：
+  - **A**：Revert 也寫 conf（`w <path> - - - - madvise`），「關閉」就能跨重開機 —— 但等於是把 Valve 的 THP 預設 `always` 主動壓成 `madvise`
+  - **B**：`DefaultHugePages` 改成 `always`（對齊 SteamOS 實際預設），這一項在 Deck 上幾乎永遠是開，checkbox 實際變成「只能關」
+  - **C**：不動 default，只修 checkbox refresher，並且在 UI 上顯示**當前值**（`always` / `madvise`）而不只 true/false，把「這個勾代表什麼」講清楚
+  - 我的建議：先做無爭議的 checkbox refresher + 顯示當前值，A/B 交由你決定（C 的顯示層其實和下面那條「亮綠燈」是同一块地方，可以併入同一個改造）
+
+### 補 TODO、用戶明示暫不處理
+
+- [ ] **原版 CryoUtilities 的「亮綠燈」視覺**：已啟用的 tweaks 在原版有綠色發光/亮起的高亮，用戶要求補進我們的 UI。實作點與上一條的「顯示當前值」是同一個區域：五個 toggle 加狀態指示（綠＝recommended、灰＝default/unknown），並透過 refresher 跟隨 5 秒刷新。web UI 同处也要做（`web/src/App.tsx` 的 memory 區塊），兩邊共用 i18n 鍵
+- [ ] **p09probe 應該先 snapshot `/etc/tmpfiles.d` 並在結束時還原**（現在它會建立/刪除 conf，對「使用者已持久化的設定」有破壞性；本次靠事後人工清除）
+
+### 用戶已知情/接受的風險（不再重複提醒）
+
+- [x] Deck 只有用戶一人使用（2026-10-30 明示）→ log 曾外洩 sudo 密碼這件事她已知情，**更新密碼的建議她未采纳**。AGENTS.md 對應條目已標註，避免我每輪重複提醒
+
+---
+
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
 - [ ] Python shim calling CLI binary (`main.py`, `plugin.json`)
