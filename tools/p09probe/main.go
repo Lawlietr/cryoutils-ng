@@ -7,7 +7,7 @@
 //
 // Build (Dev VM):
 //
-//	CGO_ENABLED=0 /usr/local/go/bin/go build -o build/p09probe ./build/p09probe
+//	CGO_ENABLED=0 /usr/local/go/bin/go build -o tools/p09probe ./tools/p09probe
 //
 // Run on the Deck:
 //

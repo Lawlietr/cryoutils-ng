@@ -125,6 +125,8 @@ fake sudo 重寫成**重現 sudo 的 stdin 契約**：只有「真的需要驗�
 
 ## 6. 真機驗收（2026-10-30，Steam Deck，kernel `7.2.7-valve2-2-neptune-72`，sshd 首次使用）
 
+> **md5 對照（2026-10-30 最終佈署）**：CLI `1751459e162dfb1ed15cf1c11686f057` · desktop `cc95f58e23032b23239132a6b5001400` · probe `640cce9a27f7c4af97a0dbb06e7c23b0`，三支的 md5 在 Dev VM 與 Deck 上完全相同（從已提交的來源重建，gofmt 後的版本）。舊版留檔：`cryoutils-ng.bak-p08`、`cryoutils-ng-desktop.bak-p08`、`cryoutils-ng-desktop.bak-425bc04`。驗收腳本：`tools/p09check/p09_check.sh`（唯讀；在 Deck 上 `bash /tmp/p09_check.sh`，實測 RESULT: 全部 PASS）。既有 log 已移到 `cryoutils_ng.log.pre-p09`，驗收從乾淨 log 開始。
+
 佈署：先備份 `cryoutils-ng.bak-p08` / `cryoutils-ng-desktop.bak-p08`，再推送新二進位；兩支 md5 與 Dev VM 建置一致（CLI `9aea9457…`、desktop `d4558b4f…`）。
 
 **讀取 A/B** —— 同一台 Deck、同一指令 `cryoutils-ng status`、deck 身份、**完全不給密碼**：

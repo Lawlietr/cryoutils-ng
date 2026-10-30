@@ -347,7 +347,7 @@
 - [x] `core/sudo_test.go`：fake sudo 改為**重現 sudo 的 stdin 契約**（要驗證時才吃掉第一行密碼；有 `-k` 就一定驗證）→ 新增 `TestRunSudoWithInputNeverLeaksPasswordIntoTheCommand`、`TestRunSudoReturnsStdoutOnly`、`TestRunSudoFailureCarriesStderrButNotThePassword`；`TestRunSudoWithoutPasswordNeverSpawnsSudo` 改用 `useSudoAlways`（不再因 root 身份 skip）
 - [x] **三個回歸實驗**（把舊行為改回去，新測試必須紅）：去掉 `-k` → `parameter file = "<密碼>\nalways\n", want "always\n"`；合併 stdout/stderr → `output = "VALUE\nPROMPT_AND_NOISE\n", want only stdout`；讀值改回走 sudo → `getUnitStatus = "", sudo password not provided`
 - [x] `CGO_ENABLED=0 go vet`（core、`tools/p09probe`）✅ · `CGO_ENABLED=1 go vet ./cmd/desktop/...` ✅ · core `go test -count=1 ./...` 全過
-- [x] 新二進位 md5：CLI `9aea9457247ee108dbf2f2ef61e586eb`（6.2 MB）· desktop `d4558b4f3f68659a1afc81070d8f5bd0`（49.5 MB）· 驗收 probe `1243449416ecd67eaf961016b6d7c083`
+- [x] 新二進位 md5：CLI `1751459e162dfb1ed15cf1c11686f057`（6.2 MB）· desktop `cc95f58e23032b23239132a6b5001400`（49.5 MB）· 驗收 probe `640cce9a27f7c4af97a0dbb06e7c23b0`
 
 ### 真機驗收（2026-10-30，Steam Deck `deck@192.168.1.232`，sshd 首次使用）
 - [x] 佈署前備份：`cryoutils-ng.bak-p08`、`cryoutils-ng-desktop.bak-p08`；推送後兩支 md5 與 Dev VM 一致
