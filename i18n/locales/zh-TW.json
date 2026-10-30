@@ -13,7 +13,8 @@
     "default": "✗ 預設值",
     "enabled": "✓ 已啟用",
     "disabled": "✗ 未啟用",
-    "none": "無"
+    "none": "無",
+    "unknown": "未知"
   },
   "swap": {
     "title": "Swap 設定",

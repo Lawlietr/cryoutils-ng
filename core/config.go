@@ -54,11 +54,37 @@ var DefaultSwapFileLocation = "/home/swapfile"
 var DefaultSwapSize = 1
 var DefaultSwapSizeBytes = int64(DefaultSwapSize * GigabyteMultiplier)
 var DefaultSwappiness = "60"
+
+// These are the upstream kernel defaults, and "revert"/"stock" writes them.
+//
+// Measured on a real Deck (2026-10-30; booted 2026-10-27 with /etc/tmpfiles.d
+// carrying nothing of ours, /proc/cmdline carrying no transparent_hugepage=
+// parameter at all), SteamOS boots with values *above* two of these:
+//
+//	/sys/kernel/mm/transparent_hugepage/enabled        -> [always] madvise never
+//	/sys/kernel/mm/transparent_hugepage/shmem_enabled  -> ... [advise] never ...
+//	/proc/sys/vm/compaction_proactiveness              -> 20
+//	/proc/sys/vm/page_lock_unfairness                  -> 5
+//	khugepaged/defrag                                  -> 1
+//
+// So for hugepages and shmem, this app's "stock" is a real change (it turns a
+// setting Valve ships enabled back off), while for the other three "stock" is a
+// no-op because SteamOS already boots at the upstream number.
+//
+// Setting DefaultHugePages to "always" instead - i.e. making it the value this
+// OS really boots with - was considered on 2026-10-30 and rejected: these
+// variables are what the CLI's `hugepages disable` and the Stock preset write,
+// so with "always" those commands would report success while changing nothing,
+// and switching THP off from this application would become impossible. What the
+// UI owes the user instead is the truth about the current value (see
+// UnitState.Value and docs/unit-params-sudo-stdin.md) plus the Recommended
+// constants below matching what the OS ships. Whether an explicit "off" should
+// be persisted so it survives a reboot is an open decision in todo.md P0.10.
 var DefaultHugePages = "madvise"
+var DefaultShMem = "never"
 var DefaultCompactionProactiveness = "20"
 var DefaultHugePageDefrag = "1"
 var DefaultPageLockUnfairness = "5"
-var DefaultShMem = "never"
 
 ////////////////
 // Unit Files //

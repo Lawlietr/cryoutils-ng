@@ -176,3 +176,187 @@ func TestSetUnitValueReportsFailures(t *testing.T) {
 		t.Errorf("setUnitValue on a missing parameter = %v, want the tee error", err)
 	}
 }
+
+// TestGetUnitStatesReadsWithoutRootAndFlagsRecommended covers the single-pass
+// read the UI refreshes with: no sudo, the bracketed sysfs answer, and the
+// "is this the recommended value" decision made from the value itself.
+func TestGetUnitStatesReadsWithoutRootAndFlagsRecommended(t *testing.T) {
+	var plainReads int
+	restoreReader, restoreSudo := unitFileReader, useSudoAlways
+	defer func() { unitFileReader, useSudoAlways = restoreReader, restoreSudo }()
+
+	// A sudo stand-in that fails the test the moment anything tries to use it.
+	sudoRecord := filepath.Join(t.TempDir(), "sudo-calls")
+	installRecordingSudo(t, sudoRecord)
+
+	useSudoAlways = false
+	unitFileReader = func(path string) ([]byte, error) {
+		plainReads++
+		switch path {
+		case "/sys/kernel/mm/transparent_hugepage/enabled":
+			return []byte("always madvise [always]\n"), nil
+		case "/sys/kernel/mm/transparent_hugepage/shmem_enabled":
+			return []byte("always within_size [advise] never deny force\n"), nil
+		case "/proc/sys/vm/compaction_proactiveness":
+			return []byte("20\n"), nil
+		case "/sys/kernel/mm/transparent_hugepage/khugepaged/defrag":
+			return []byte("1\n"), nil
+		}
+		return nil, os.ErrNotExist // page_lock_unfairness: not on this kernel
+	}
+
+	e := NewEngine(io.Discard, io.Discard)
+	states := e.GetUnitStates()
+
+	if plainReads != len(unitTunableParams()) {
+		t.Fatalf("reading unit states issued %d plain read(s), want one per parameter (%d)",
+			plainReads, len(unitTunableParams()))
+	}
+	if b, _ := os.ReadFile(sudoRecord); len(b) != 0 {
+		t.Fatalf("reading unit states went through sudo: %s", b)
+	}
+	if got := states["hugepages"]; got.Value != "always" || !got.IsRecommended {
+		t.Fatalf("hugepages = %+v, want value \"always\" and recommended", got)
+	}
+	if got := states["shmem_enabled"]; got.Value != "advise" || !got.IsRecommended {
+		t.Fatalf("shmem_enabled = %+v, want value \"advise\" and recommended", got)
+	}
+	if got := states["compaction_proactiveness"]; got.Value != "20" || got.IsRecommended {
+		t.Fatalf("compaction_proactiveness = %+v, want value \"20\" and NOT recommended", got)
+	}
+	if got := states["page_lock_unfairness"]; got.Value != ValueUnknown || got.IsRecommended {
+		t.Fatalf("unreadable parameter = %+v, want value %q and NOT recommended", got, ValueUnknown)
+	}
+}
+
+// TestGetStatusSummaryPublishesRawUnitValues is what the UI needs to show the
+// actual value instead of only a checkmark.
+func TestGetStatusSummaryPublishesRawUnitValues(t *testing.T) {
+	restoreReader := unitFileReader
+	defer func() { unitFileReader = restoreReader }()
+	unitFileReader = func(path string) ([]byte, error) {
+		switch path {
+		case "/sys/kernel/mm/transparent_hugepage/enabled":
+			return []byte("[always] madvise never\n"), nil
+		case "/sys/kernel/mm/transparent_hugepage/shmem_enabled":
+			return []byte("always within_size [advise] never deny force\n"), nil
+		case "/proc/sys/vm/compaction_proactiveness":
+			return []byte("20\n"), nil
+		case "/sys/kernel/mm/transparent_hugepage/khugepaged/defrag":
+			return []byte("1\n"), nil
+		case "/proc/sys/vm/page_lock_unfairness":
+			return []byte("1\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	e := NewEngine(io.Discard, io.Discard)
+	sum := e.GetStatusSummary()
+	for key, want := range map[string]string{
+		"HugePagesValue":               "always",
+		"ShMemValue":                   "advise",
+		"CompactionProactivenessValue": "20",
+		"DefragValue":                  "1",
+		"PageLockUnfairnessValue":      "1",
+	} {
+		if sum[key] != want {
+			t.Errorf("summary[%q] = %q, want %q", key, sum[key], want)
+		}
+	}
+	// The boolean answer must agree with the value it sits next to.
+	if sum["HugePages"] != "true" || sum["CompactionProactiveness"] != "false" || sum["PageLockUnfairness"] != "true" {
+		t.Errorf("booleans disagree with the published values: %v", sum)
+	}
+}
+
+// TestRecommendedValuesMatchWhatSteamOSShips guards the other half of P0.10:
+// the verdict the UI shows must match the machine. Measured on a Deck booted
+// 2026-10-27 with no tmpfiles entries of ours and no transparent_hugepage= on
+// the kernel command line, the five parameters came up as always / advise / 20 /
+// 5 / 1. Two of them are already at what this app calls recommended, so a
+// freshly booted Deck must show those two rows as recommended - and must not
+// offer a "fix" for something Valve already configured.
+func TestRecommendedValuesMatchWhatSteamOSShips(t *testing.T) {
+	if RecommendedHugePages != "always" {
+		t.Fatalf("RecommendedHugePages = %q, want \"always\" (the value SteamOS boots with)", RecommendedHugePages)
+	}
+	if RecommendedShMem != "advise" {
+		t.Fatalf("RecommendedShMem = %q, want \"advise\" (the value SteamOS boots with)", RecommendedShMem)
+	}
+	if RecommendedCompactionProactiveness != "0" || RecommendedHugePageDefrag != "0" || RecommendedPageLockUnfairness != "1" {
+		t.Fatalf("recommended trio = %q/%q/%q, want 0/0/1",
+			RecommendedCompactionProactiveness, RecommendedHugePageDefrag, RecommendedPageLockUnfairness)
+	}
+	// The stock/default side deliberately stays at the upstream kernel numbers.
+	// If that ever changes, the CLI's `disable`/`stock` commands stop doing
+	// anything for those parameters, which is why the pair is pinned here.
+	if DefaultHugePages != "madvise" || DefaultShMem != "never" {
+		t.Fatalf("stock values = %q/%q, want madvise/never (upstream kernel defaults; see core/config.go)",
+			DefaultHugePages, DefaultShMem)
+	}
+}
+
+// TestRevertHugePagesEndsOnTheDefaultNoMatterTheOrder runs the revert path
+// against a stand-in parameter file: the value left in the file must be the boot
+// default (so nothing has to be re-applied after a reboot), and the persistence
+// conf must be dropped with `rm -f` through sudo with -k.
+func TestRevertHugePagesWritesTheDefaultAndDropsTheConf(t *testing.T) {
+	dir := t.TempDir()
+	paramFile := filepath.Join(dir, "enabled")
+	// Start from THP being on, which is what a Deck boots with. Seeding the file
+	// with the value revert is supposed to write would make the assertion pass even
+	// if revert never wrote anything.
+	if err := os.WriteFile(paramFile, []byte("always\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	confDir := filepath.Join(dir, "tmpfiles.d")
+	if err := os.MkdirAll(confDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	record := filepath.Join(dir, "sudo-calls")
+	installFakeSudo(t, record, "pw")
+	restore := useSudoAlways
+	useSudoAlways = true
+	defer func() { useSudoAlways = restore }()
+
+	restoreMatrix, restoreTmpFiles := UnitMatrix["hugepages"], TmpFilesRoot
+	UnitMatrix["hugepages"] = paramFile
+	TmpFilesRoot = confDir
+	defer func() {
+		UnitMatrix["hugepages"] = restoreMatrix
+		TmpFilesRoot = restoreTmpFiles
+	}()
+
+	e := NewEngine(io.Discard, io.Discard)
+	e.Password = "pw"
+	if err := e.RevertHugePages(); err != nil {
+		t.Fatalf("RevertHugePages: %v", err)
+	}
+
+	got, err := os.ReadFile(paramFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fake sudo hands `tee` exactly what sudo left on stdin, which is how the
+	// real tee stores it; compare through the same parser the app reads with.
+	if parseUnitValue(string(got)) != DefaultHugePages {
+		t.Fatalf("parameter file = %q, want %q (the stock value revert must write)", string(got), DefaultHugePages)
+	}
+	calls := recordedSudoCalls(t, record)
+	var removed, sawKey bool
+	for _, line := range calls {
+		if strings.Contains(line, "rm -f "+filepath.Join(confDir, "hugepages.conf")) {
+			removed = true
+		}
+		if strings.Contains(line, " -k ") {
+			sawKey = true
+		}
+	}
+	if !removed {
+		t.Fatalf("revert did not remove the persistence conf with rm -f; sudo calls: %v", calls)
+	}
+	if !sawKey {
+		t.Fatalf("sudo was called without -k: %v", calls)
+	}
+}

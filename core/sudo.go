@@ -41,6 +41,16 @@ var ErrNoSudoPassword = errors.New("sudo password not provided")
 // unprivileged. Never set it outside a test.
 var useSudoAlways = false
 
+// ForceSudoWrapper turns on the sudo wrapper even when the process is already
+// root. It is a test hook for packages outside core: the native UI tests use it
+// to prove that merely drawing a card never runs a privileged command.
+// The returned function restores the previous setting.
+func ForceSudoWrapper() (restore func()) {
+	previous := useSudoAlways
+	useSudoAlways = true
+	return func() { useSudoAlways = previous }
+}
+
 // RenewAuth sends the stored sudo password to a dummy sudo command to refresh
 // the sudo timestamp cache. Returns error if password is empty or authentication fails.
 // When already running as root (e.g. CLI launched via sudo), authentication is skipped.

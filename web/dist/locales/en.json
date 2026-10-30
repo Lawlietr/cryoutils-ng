@@ -13,7 +13,8 @@
     "default": "✗ Default",
     "enabled": "✓ Active",
     "disabled": "✗ Inactive",
-    "none": "None"
+    "none": "None",
+    "unknown": "Unknown"
   },
   "swap": {
     "title": "Swap Settings",

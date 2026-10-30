@@ -14,6 +14,7 @@ import {
 import { useI18n } from './i18n/index'
 import LanguageSelector from './LanguageSelector'
 import type { StatusData, MemoryParam } from './types'
+import { MEMORY_VALUE_KEYS } from './types'
 import './App.css'
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -73,6 +74,12 @@ function StatusSection({ status }: { status: StatusData }) {
             <span className="status-label">{key.replace(/_/g, ' ')}</span>
             <span className={`status-value ${status[key] === 'true' ? 'ok' : 'not-ok'}`}>
               {status[key] === 'true' ? t.status.recommended : t.status.default}
+              {/* the middot keeps the verdict and the raw value readable even
+                  when the stylesheet does not separate them (screen readers). */}
+              <span className="status-detail">
+                {'· '}
+                {status[`${key}Value` as keyof StatusData] || t.status.unknown}
+              </span>
             </span>
           </div>
         ))}
@@ -214,6 +221,9 @@ function MemorySection({
           return (
             <div className="memory-item" key={param}>
               <span className="memory-name">{tKey(`memoryParams.${param}`)}</span>
+              <span className="memory-value">
+                {status[MEMORY_VALUE_KEYS[param]] || t.status.unknown}
+              </span>
               <button
                 className={`btn-toggle ${isActive ? 'active' : ''}`}
                 onClick={() => handleToggle(param)}
@@ -400,6 +410,12 @@ export default function App() {
     CompactionProactiveness: 'false',
     Defrag: 'false',
     PageLockUnfairness: 'false',
+    // Empty until the first fetch: the UI renders t.status.unknown for these.
+    HugePagesValue: '',
+    ShMemValue: '',
+    CompactionProactivenessValue: '',
+    DefragValue: '',
+    PageLockUnfairnessValue: '',
   })
   const [progressMsg, setProgressMsg] = useState('')
   const unsubscribeRef = useRef<(() => void) | null>(null)

@@ -138,20 +138,28 @@ func (e *Engine) GetStatusSummary() map[string]string {
 		swapFile = e.SwapFileLocation
 	}
 
-	return map[string]string{
-		"SwapFile":                swapFile,
-		"SwapSizeGB":              fmt.Sprintf("%d", e.getSwapSizeGB()),
-		"ZramSizeGB":              fmt.Sprintf("%d", zramSizeGB),
-		"ZramActive":              fmt.Sprintf("%v", zramActive),
-		"TotalSwapGB":             fmt.Sprintf("%d", e.getTotalSwapGB()),
-		"Swappiness":              fmt.Sprintf("%d", e.getSwappinessValueCLI()),
-		"VRAM":                    fmt.Sprintf("%s", GetHumanVRAMSize(e.getVRAMValueCLI())),
-		"HugePages":               fmt.Sprintf("%v", e.getHugePagesStatus()),
-		"ShMem":                   fmt.Sprintf("%v", e.getShMemStatus()),
-		"CompactionProactiveness": fmt.Sprintf("%v", e.getCompactionProactivenessStatus()),
-		"Defrag":                  fmt.Sprintf("%v", e.getDefragStatus()),
-		"PageLockUnfairness":      fmt.Sprintf("%v", e.getPageLockUnfairnessStatus()),
+	states := e.GetUnitStates()
+
+	summary := map[string]string{
+		"SwapFile":    swapFile,
+		"SwapSizeGB":  fmt.Sprintf("%d", e.getSwapSizeGB()),
+		"ZramSizeGB":  fmt.Sprintf("%d", zramSizeGB),
+		"ZramActive":  fmt.Sprintf("%v", zramActive),
+		"TotalSwapGB": fmt.Sprintf("%d", e.getTotalSwapGB()),
+		"Swappiness":  fmt.Sprintf("%d", e.getSwappinessValueCLI()),
+		"VRAM":        fmt.Sprintf("%s", GetHumanVRAMSize(e.getVRAMValueCLI())),
 	}
+
+	// One read per parameter answers both questions the UI asks: the boolean
+	// "is this the recommended value", and the value itself ("always", "60").
+	// The value is published as `<key>Value` so the UI can show what the kernel
+	// actually holds instead of only a checkmark.
+	for param, key := range unitSummaryKeys() {
+		state := states[param]
+		summary[key] = fmt.Sprintf("%v", state.IsRecommended)
+		summary[key+"Value"] = state.Value
+	}
+	return summary
 }
 
 // getTotalSwapGB returns total swap (zram + swap file) in GB from /proc/meminfo.

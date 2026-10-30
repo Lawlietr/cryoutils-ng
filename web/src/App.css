@@ -330,3 +330,21 @@ body {
   .header { gap: 0.75rem; }
   .header input[type="password"] { width: 120px; }
 }
+
+/* The raw kernel value sits next to the recommended/default verdict so the two
+   states can never be confused (P0.10: a bare checkmark hid that Huge Pages was
+   already on at the SteamOS default). */
+.status-detail {
+  margin-left: 8px;
+  font-size: 0.82em;
+  opacity: 0.75;
+  font-family: var(--font-mono, monospace);
+}
+
+.memory-value {
+  margin-left: auto;
+  margin-right: 10px;
+  font-size: 0.85em;
+  opacity: 0.75;
+  font-family: var(--font-mono, monospace);
+}

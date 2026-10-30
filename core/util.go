@@ -211,6 +211,82 @@ func removeElementFromStringSlice(str string, slice []string) []string {
 // ordinary user, and it goes through runSudo rather than a bare `sudo cat`: a
 // bare sudo inherits the terminal and prompts on the tty, which is how the native
 // UI ended up asking twice.
+// ValueUnknown is what a unit parameter reports when it cannot be read at all.
+// Reporting it separately matters: a bare `false` used to mean "the value is
+// not the recommended one" and "we could not read anything" at the same time.
+const ValueUnknown = "unknown"
+
+// UnitState is one kernel parameter as the running system actually holds it.
+type UnitState struct {
+	Param         string // key in UnitMatrix, e.g. "hugepages"
+	Value         string // active value, e.g. "always" / "60"; ValueUnknown if unreadable
+	Path          string // procfs/sysfs path it was read from
+	IsRecommended bool   // Value == the recommended value for this parameter
+}
+
+// recommendedUnitValue reads the (test-overridable) recommended value for a
+// parameter. A map initialised at package init would freeze these vars, so the
+// mapping goes through a function.
+func recommendedUnitValue(param string) string {
+	switch param {
+	case "hugepages":
+		return RecommendedHugePages
+	case "shmem_enabled":
+		return RecommendedShMem
+	case "compaction_proactiveness":
+		return RecommendedCompactionProactiveness
+	case "defrag":
+		return RecommendedHugePageDefrag
+	case "page_lock_unfairness":
+		return RecommendedPageLockUnfairness
+	}
+	return ""
+}
+
+// unitTunableParams are the memory parameters exposed to the UI, in the order
+// the UI lists them (map iteration order would shuffle the status card rows).
+func unitTunableParams() []string {
+	return []string{"hugepages", "shmem_enabled", "compaction_proactiveness", "defrag", "page_lock_unfairness"}
+}
+
+// unitSummaryKeys maps a parameter name to the key GetStatusSummary uses for its
+// boolean answer. The active value travels next to it as `<key>Value`.
+func unitSummaryKeys() map[string]string {
+	return map[string]string{
+		"hugepages":                "HugePages",
+		"shmem_enabled":            "ShMem",
+		"compaction_proactiveness": "CompactionProactiveness",
+		"defrag":                   "Defrag",
+		"page_lock_unfairness":     "PageLockUnfairness",
+	}
+}
+
+// getUnitState reads one parameter without logging: the status refresh runs on a
+// 5s ticker, and the old "Unable to get current ..." lines were pure noise there.
+// The toggle paths keep their own explicit error logging.
+func (e *Engine) getUnitState(param string) UnitState {
+	state := UnitState{Param: param, Path: UnitMatrix[param], Value: ValueUnknown}
+	value, err := e.getUnitStatus(param)
+	if err != nil {
+		return state
+	}
+	state.Value = value
+	state.IsRecommended = value != "" && value == recommendedUnitValue(param)
+	return state
+}
+
+// GetUnitStates reads every tunable memory parameter straight from
+// procfs/sysfs (no root, no sudo), in a single pass per parameter. The native UI
+// refreshes its checkboxes with this, so the checkboxes can never disagree with
+// the kernel because of an external change.
+func (e *Engine) GetUnitStates() map[string]UnitState {
+	states := make(map[string]UnitState, len(unitTunableParams()))
+	for _, param := range unitTunableParams() {
+		states[param] = e.getUnitState(param)
+	}
+	return states
+}
+
 func (e *Engine) getUnitStatus(param string) (string, error) {
 	path := UnitMatrix[param]
 	if path == "" {
