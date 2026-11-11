@@ -1,0 +1,752 @@
+{
+ "after-step2-1280x800-en.png": {
+  "file": "tools/ui1shots/baseline/after-step2-1280x800-en.png",
+  "screen": [
+   1280,
+   800
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 12,
+   "y0": 4,
+   "x1": 1274,
+   "y1": 795,
+   "w": 1263,
+   "h": 792,
+   "screen_ratio": 0.987
+  },
+  "header_bottom_y": 43,
+  "content": {
+   "left": 90,
+   "right": 1189,
+   "width": 1100,
+   "ratio": 0.859,
+   "centre_offset": -3.5
+  },
+  "widest_control": {
+   "run": 1096,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 92,
+   "x1": 1187,
+   "y": 89
+  },
+  "section_count": 2,
+  "card_faces": {
+   "runs": 4,
+   "y_ranges": [
+    [
+     82,
+     440
+    ],
+    [
+     480,
+     602
+    ],
+    [
+     686,
+     732
+    ],
+    [
+     772,
+     795
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.759
+  },
+  "sections": [
+   {
+    "y": [
+     83,
+     441
+    ],
+    "height": 359,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       83,
+       441
+      ],
+      "clusters": [
+       [
+        90,
+        1190
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     481,
+     795
+    ],
+    "height": 315,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       481,
+       795
+      ],
+      "clusters": [
+       [
+        90,
+        1190
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ },
+ "after-step2-1280x800-zh-TW.png": {
+  "file": "tools/ui1shots/baseline/after-step2-1280x800-zh-TW.png",
+  "screen": [
+   1280,
+   800
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 12,
+   "y0": 4,
+   "x1": 1274,
+   "y1": 795,
+   "w": 1263,
+   "h": 792,
+   "screen_ratio": 0.987
+  },
+  "header_bottom_y": 43,
+  "content": {
+   "left": 90,
+   "right": 1189,
+   "width": 1100,
+   "ratio": 0.859,
+   "centre_offset": -3.5
+  },
+  "widest_control": {
+   "run": 1096,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 92,
+   "x1": 1187,
+   "y": 89
+  },
+  "section_count": 2,
+  "card_faces": {
+   "runs": 4,
+   "y_ranges": [
+    [
+     82,
+     440
+    ],
+    [
+     480,
+     602
+    ],
+    [
+     686,
+     732
+    ],
+    [
+     772,
+     795
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.76
+  },
+  "sections": [
+   {
+    "y": [
+     83,
+     441
+    ],
+    "height": 359,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       83,
+       441
+      ],
+      "clusters": [
+       [
+        90,
+        1190
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     481,
+     795
+    ],
+    "height": 315,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       481,
+       795
+      ],
+      "clusters": [
+       [
+        90,
+        1190
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ },
+ "after-step2-2560x1440-en.png": {
+  "file": "tools/ui1shots/baseline/after-step2-2560x1440-en.png",
+  "screen": [
+   2560,
+   1440
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 256,
+   "y0": 144,
+   "x1": 2302,
+   "y1": 1295,
+   "w": 2047,
+   "h": 1152,
+   "screen_ratio": 0.8
+  },
+  "header_bottom_y": 230,
+  "content": {
+   "left": 264,
+   "right": 2286,
+   "width": 2023,
+   "ratio": 0.79,
+   "centre_offset": -4.0
+  },
+  "widest_control": {
+   "run": 2024,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 268,
+   "x1": 2291,
+   "y": 535
+  },
+  "section_count": 2,
+  "card_faces": {
+   "runs": 4,
+   "y_ranges": [
+    [
+     309,
+     503
+    ],
+    [
+     531,
+     675
+    ],
+    [
+     703,
+     1025
+    ],
+    [
+     1106,
+     1295
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.809
+  },
+  "sections": [
+   {
+    "y": [
+     309,
+     1027
+    ],
+    "height": 719,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       309,
+       1027
+      ],
+      "clusters": [
+       [
+        264,
+        2287
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1106,
+     1288
+    ],
+    "height": 183,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1106,
+       1288
+      ],
+      "clusters": [
+       [
+        264,
+        2287
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ },
+ "after-step2-2560x1440-zh-TW.png": {
+  "file": "tools/ui1shots/baseline/after-step2-2560x1440-zh-TW.png",
+  "screen": [
+   2560,
+   1440
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 256,
+   "y0": 144,
+   "x1": 2302,
+   "y1": 1295,
+   "w": 2047,
+   "h": 1152,
+   "screen_ratio": 0.8
+  },
+  "header_bottom_y": 230,
+  "content": {
+   "left": 264,
+   "right": 2286,
+   "width": 2023,
+   "ratio": 0.79,
+   "centre_offset": -4.0
+  },
+  "widest_control": {
+   "run": 2024,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 268,
+   "x1": 2291,
+   "y": 535
+  },
+  "section_count": 2,
+  "card_faces": {
+   "runs": 4,
+   "y_ranges": [
+    [
+     309,
+     503
+    ],
+    [
+     531,
+     675
+    ],
+    [
+     703,
+     1025
+    ],
+    [
+     1106,
+     1295
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.808
+  },
+  "sections": [
+   {
+    "y": [
+     309,
+     1027
+    ],
+    "height": 719,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       309,
+       1027
+      ],
+      "clusters": [
+       [
+        264,
+        2287
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1106,
+     1288
+    ],
+    "height": 183,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1106,
+       1288
+      ],
+      "clusters": [
+       [
+        264,
+        2287
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ },
+ "after-step2-3840x2160-en.png": {
+  "file": "tools/ui1shots/baseline/after-step2-3840x2160-en.png",
+  "screen": [
+   3840,
+   2160
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 384,
+   "y0": 216,
+   "x1": 3454,
+   "y1": 1943,
+   "w": 3071,
+   "h": 1728,
+   "screen_ratio": 0.8
+  },
+  "header_bottom_y": 302,
+  "content": {
+   "left": 819,
+   "right": 3020,
+   "width": 2202,
+   "ratio": 0.573,
+   "centre_offset": 0.5
+  },
+  "widest_control": {
+   "run": 2192,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 824,
+   "x1": 3015,
+   "y": 395
+  },
+  "section_count": 3,
+  "card_faces": {
+   "runs": 5,
+   "y_ranges": [
+    [
+     381,
+     1097
+    ],
+    [
+     1178,
+     1420
+    ],
+    [
+     1587,
+     1683
+    ],
+    [
+     1756,
+     1808
+    ],
+    [
+     1888,
+     1943
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.726
+  },
+  "sections": [
+   {
+    "y": [
+     381,
+     1099
+    ],
+    "height": 719,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       381,
+       1099
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1178,
+     1810
+    ],
+    "height": 633,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1178,
+       1810
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1888,
+     1936
+    ],
+    "height": 49,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1888,
+       1936
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ },
+ "after-step2-3840x2160-zh-TW.png": {
+  "file": "tools/ui1shots/baseline/after-step2-3840x2160-zh-TW.png",
+  "screen": [
+   3840,
+   2160
+  ],
+  "background": [
+   23,
+   23,
+   24
+  ],
+  "window": {
+   "x0": 384,
+   "y0": 216,
+   "x1": 3454,
+   "y1": 1943,
+   "w": 3071,
+   "h": 1728,
+   "screen_ratio": 0.8
+  },
+  "header_bottom_y": 302,
+  "content": {
+   "left": 819,
+   "right": 3020,
+   "width": 2202,
+   "ratio": 0.573,
+   "centre_offset": 0.5
+  },
+  "widest_control": {
+   "run": 2192,
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "x0": 824,
+   "x1": 3015,
+   "y": 395
+  },
+  "section_count": 3,
+  "card_faces": {
+   "runs": 5,
+   "y_ranges": [
+    [
+     381,
+     1097
+    ],
+    [
+     1178,
+     1420
+    ],
+    [
+     1587,
+     1683
+    ],
+    [
+     1756,
+     1808
+    ],
+    [
+     1888,
+     1943
+    ]
+   ],
+   "colour": [
+    34,
+    35,
+    39
+   ],
+   "coverage": 0.726
+  },
+  "sections": [
+   {
+    "y": [
+     381,
+     1099
+    ],
+    "height": 719,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       381,
+       1099
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1178,
+     1810
+    ],
+    "height": 633,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1178,
+       1810
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   },
+   {
+    "y": [
+     1888,
+     1936
+    ],
+    "height": 49,
+    "lines": 1,
+    "line_detail": [
+     {
+      "y": [
+       1888,
+       1936
+      ],
+      "clusters": [
+       [
+        819,
+        3021
+       ]
+      ],
+      "dead_gap": 0
+     }
+    ]
+   }
+  ]
+ }
+}

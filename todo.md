@@ -424,7 +424,7 @@
 
 ### 補 TODO、用戶明示暫不處理
 
-- [ ] **原版 CryoUtilities 的「亮綠燈」視覺**：已啟用的 tweaks 在原版有綠色發光/亮起的高亮，用戶要求補進我們的 UI。實作點與上一條的「顯示當前值」是同一個區域：五個 toggle 加狀態指示（綠＝recommended、灰＝default/unknown），並透過 refresher 跟隨 5 秒刷新。web UI 同处也要做（`web/src/App.tsx` 的 memory 區塊），兩邊共用 i18n 鍵
+- [ ] **原版 CryoUtilities 的「亮綠燈」視覺**：已啟用的 tweaks 在原版有綠色發光/亮起的高亮，用戶要求補進我們的 UI。實作點與上一條的「顯示當前值」是同一個區域：五個 toggle 加狀態指示（綠＝recommended、灰＝default/unknown），並透過 refresher 跟隨 5 秒刷新。web UI 同處也要做（`web/src/App.tsx` 的 memory 區塊），兩邊共用 i18n 鍵
 - [ ] **p09probe 應該先 snapshot `/etc/tmpfiles.d` 並在結束時還原**（現在它會建立/刪除 conf，對「使用者已持久化的設定」有破壞性；本次靠事後人工清除）
 
 ### 用戶已知情/接受的風險（不再重複提醒）
@@ -652,15 +652,27 @@
       預設值已實測：`text` 14、`helperText` 11、`subHeadingText` 18、`headingText` 24、
       `padding` 4、`innerPadding` 8、`separator` 1 → token 為 16／12／25／31／4／8／1。
       六支守門測試在 `theme_test.go`（token 真覆蓋 Fyne 預設、未對映的名字 fall through、
-      間距階梯恰好 7 級且在 8px 網格上、`--fs-body` 起必須 1.25 倍、不准發明階梯外的值、
+      間距階梯恰好 7 級且在 8px 網格上、`--fs-body` 起必須 1.25 倍、不準發明階梯外的值、
       CJK 字型仍在）。`TestMemorySectionBuildNeverTogglesAnything` 仍綠（P0.10 紅線）。
       **兩個要記住的結論**：(1) Fyne 只有 `padding`/`innerPadding` 兩層 size name，
       `--s-3 … --s-7` 在 theme 層放不進去（只能由容器用常數加），所以 Step 1 單獨存在時
       **不會讓版面變整齊**；(2) 字變大的直接代價是垂直容量下降：1280×800 最後一條只露出 8 px
       （被視窗切掉）、2560 也到底 → **Step 3–5 必須把垂直空間還回來**。
-- [ ] Step 2 — 區塊邊界：Fyne 的 `Card` renderer 用 `NewShadowingRenderer(…, CardLevel)` →
-      **只有陰影沒有邊框**，theme 也沒有 Card 邊框色名。要自畫 `canvas.Rectangle`
-      （`StrokeColor` = `theme.ColorNameSeparator`、`StrokeWidth = 1`），或改自訂 card-like 容器
+- [x] Step 2 — 區塊邊界（**dev 完成 2026-11-11，真機待驗**）：Fyne 的 `Card` renderer 用
+      `NewShadowingRenderer(…, CardLevel)` → **只有陰影沒有邊框**，theme 也沒有 Card 邊框色名。
+      改成 `ui/fyneui/section_card.go` 的自繪容器（v2.7.4 的 `canvas.Rectangle` 沒有 `SetStroke`，
+      邊框是 `StrokeColor`/`StrokeWidth` 兩個欄位）。實測：卡片面覆蓋率 0 → 0.73–0.81，
+      可見卡數 0 → 4（1280×800）／5（4K）；邊框對視窗背景對比 2.08
+      （直接用 `theme.ColorNameSeparator` 只有 1.17，等於看不見）。
+      兩個連帶缺陷（不修就等于 Step 2 白做）：
+      (1) `container.NewVBox` 的 children 間距是 `theme.Padding()` = 4 px，兩張卡的邊框會變成
+          貼在一起的雙線 → `stackSections` 插入 `--s-6` 32 px 的 `sectionGap`。
+      (2) 卡片面色 (34,35,39) 與 Fyne 輸入框底色 (40,41,46) 的 WCAG 對比只有 **1.08**，
+          Select 會陷進卡片裡 → theme 提供 `ColorInputSurface` (16,17,19)，對比提到 1.20。
+      **[DECIDED] 2026-11-11（用戶）：接受較多捲動，不收 §4 的階梯。**
+      理由與後續：Step 3 拆 Status 卡與 Step 6 的 nav rail 會改變總頁高，那時再量一次
+      （量法：`CRYOUTILS_UI_DEBUG=1` 看 `content.MinSize()`，已記在 §5.6）。
+      可收的空間記在旁邊備用：`--s-5` 24 → 16 省約 112 px、`--s-6` 32 → 24 省 48 px。
 - [ ] Step 3 — Status 拆卡 A／卡 B + 固定 label 寬的定義列表（拿掉 `NewGridWithColumns(2)` 的
       語意交錯、中間 478 px）；VRAM 併入卡 A（`sections_vram.go` 的卡消失）
 - [ ] Step 4 — Swap／Game Data 改 `widget.NewForm`，Select 上限 320 px（現況 1,085 px），

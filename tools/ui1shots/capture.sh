@@ -21,6 +21,7 @@ SHOTS_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_DIR=$(cd "$SHOTS_DIR/../.." && pwd)
 BUILD_DIR="$SHOTS_DIR/.build"
 BASELINE_DIR="$SHOTS_DIR/baseline"
+LOCK_DIR="$SHOTS_DIR/.build/lock"
 BIN="$BUILD_DIR/cryoutils-ng-desktop"
 
 TAG=${1:-before}
@@ -33,6 +34,15 @@ PROFILE_DIR="$HOME/.cryoutils_ng"
 CONFIG_FILE="$PROFILE_DIR/ui.json"
 
 mkdir -p "$BUILD_DIR" "$BASELINE_DIR" "$PROFILE_DIR"
+
+# Two capture runs at once share one X display and step on each other: scrot then
+# leaves extra files named "..._000.png" behind and the screenshots no longer
+# belong to one build.
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "Another capture run is in progress ($LOCK_DIR exists). Remove it if the run died."
+  exit 1
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
 echo "== build (CGO_ENABLED=1) =="
 if ! (cd "$REPO_DIR" && CGO_ENABLED=1 "$GO" build -o "$BIN" ./cmd/desktop); then

@@ -77,35 +77,48 @@ def group_rows(flags, gap, min_h):
 
 
 def page_background(img):
-    """The app's own background colour.
+    """The colour the page itself is painted with, behind every section box.
 
-    Sampled as the most common colour of the whole frame, not from the image
-    edge: at 2560x1440 and 3840x2160 the window is 80% of the screen, so the
-    edge is the X root (black) instead of the Fyne background.
+    Taking the most common colour of the frame used to work, but once the section
+    boxes cover most of the window their fill becomes the most common colour and
+    the page colour is mistaken for a card. Instead: the four corners agree on
+    what is outside the window (or on the page colour when the window is full
+    screen), and the page colour is then read from the header band at the top of
+    the window.
     """
     w, h = img.size
+    win = window_rect(img, corner_colour(img))
+    if win == (0, 0, w - 1, h - 1):
+        return corner_colour(img)
+    wx0, wy0, wx1, wy1 = win
+    return dominant(img, [(wx0 + 5, wy0 + 2, wx1 - 5, wy0 + 14)])
+
+
+def corner_colour(img):
+    """What the four corners agree on: the X root, or the page when full screen."""
+    w, h = img.size
     px = img.load()
-    counter = collections.Counter()
-    for y in range(0, h, 3):
-        for x in range(0, w, 3):
-            counter[px[x, y]] += 1
-    return counter.most_common(1)[0][0]
+    return px[2, 2]
 
 
-def window_rect(img, bg):
-    """Bounding box of the app window: everything painted in the app background.
+def window_rect(img, outside):
+    """Bounding box of the window: everything that is not the colour outside it.
 
-    Also proves windowSizeForScreen() (full screen at <=1280, 80% above that).
+    When the window covers the screen the corners are page colour, so the answer
+    is the whole frame. Also proves windowSizeForScreen() (full screen at <=1280,
+    80% above that).
     """
     w, h = img.size
     px = img.load()
     x0, y0, x1, y1 = w, h, -1, -1
     for y in range(h):
         for x in range(0, w, 2):
-            if diff(px[x, y], bg) <= TOL:
+            if diff(px[x, y], outside) > TOL:
                 x0, x1 = min(x0, x), max(x1, x)
                 y0, y1 = min(y0, y), max(y1, y)
     if x1 < x0:
+        return (0, 0, w - 1, h - 1)
+    if x0 <= 2 and y0 <= 2 and x1 >= w - 3 and y1 >= h - 3:
         return (0, 0, w - 1, h - 1)
     return (x0, y0, x1, y1)
 
@@ -160,11 +173,75 @@ def widest_solid_run(img, bg, box):
             "x0": best[2], "x1": best[3], "y": best[4]}
 
 
+def surface_colour(img, bg, x_lo, x_hi, y_top, y_bottom):
+    """The colour that covers the card faces, found by area, not by name.
+
+    Before the sections had borders nothing differed from the page background by
+    enough area, so this returns None and the run count stays 0.
+    """
+    if y_bottom - y_top < 20 or x_hi - x_lo < 40:
+        return None
+    cand = dominant(img, [(x_lo + 5, y_top + 5, x_hi - 5, y_bottom - 5)])
+    if diff(cand, bg) <= TOL:
+        return None
+    return cand
+
+
+def surface_runs(img, surface, x_lo, x_hi, y_top, y_bottom):
+    """How many separate card faces a scan line crosses, best of several columns.
+
+    A break shorter than the window-relative threshold is still the same card
+    (text rows interrupt the face); a longer one is the gap between two cards.
+    Columns are sampled across the body and the best one wins, because a column
+    through a column of text reads as one long non-face stretch.
+    """
+    if surface is None:
+        return {"colour": None, "runs": 0, "coverage": 0.0, "y_ranges": []}
+    px = img.load()
+    face_break = max(20, int(0.02 * (y_bottom - y_top)))
+    best = {"runs": 0, "y_ranges": []}
+    step = max(1, (x_hi - x_lo) // 40)
+    for x in range(x_lo + 2, x_hi - 2, step):
+        runs, start, blanks = [], None, face_break
+        for y in range(y_top, y_bottom + 1):
+            inside = diff(px[x, y], surface) <= TOL // 2
+            if inside:
+                if start is None:
+                    start = y
+                blanks = 0
+            else:
+                blanks += 1
+                if start is not None and blanks > face_break:
+                    if y - blanks - start >= 12:
+                        runs.append([start, y - blanks - 1])
+                    start = None
+        if start is not None and y_bottom - start >= 12:
+            runs.append([start, y_bottom])
+        if len(runs) > best["runs"]:
+            best = {"runs": len(runs), "y_ranges": runs}
+    best["colour"] = list(surface)
+    return best
+
+
+def surface_coverage(img, surface, x_lo, x_hi, y_top, y_bottom):
+    """Share of the page body painted with the card face colour."""
+    if surface is None:
+        return 0.0
+    px = img.load()
+    hit = total = 0
+    for y in range(y_top, y_bottom, 2):
+        for x in range(x_lo, x_hi, 2):
+            total += 1
+            if diff(px[x, y], surface) <= TOL // 2:
+                hit += 1
+    return round(hit / total, 3) if total else 0.0
+
+
 def measure(path):
     img = Image.open(path).convert("RGB")
     w, h = img.size
+    wx0, wy0, wx1, wy1 = window_rect(img, corner_colour(img))
     bg = page_background(img)
-    wx0, wy0, wx1, wy1 = window_rect(img, bg)
     # The vertical scrollbar sits against the right edge of the scroll container.
     # It is not part of the content column, so it must not widen the measurement.
     scroll_bar_w = 16
@@ -214,6 +291,10 @@ def measure(path):
         sections.append(cur)
 
     out["section_count"] = len(sections)
+    scan_x = min(right - 20, left + 40)
+    face = surface_colour(img, bg, left, right, body_top, wy1)
+    out["card_faces"] = surface_runs(img, face, left, right, body_top, wy1)
+    out["card_faces"]["coverage"] = surface_coverage(img, face, left, right, body_top, wy1)
     out["sections"] = []
     for sec in sections:
         y0, y1 = sec[0][0], sec[-1][1]
@@ -235,8 +316,10 @@ def show(m):
     print(f"  content {c['left']}..{c['right']} w={c['width']} ratio={c['ratio']} "
           f"centre_offset={c['centre_offset']}")
     wc = m["widest_control"]
+    faces = m["card_faces"]
     print(f"  sections={m['section_count']}  widest_control={wc['run']}px "
-          f"(x {wc['x0']}..{wc['x1']} @y{wc['y']} rgb={wc['colour']})")
+          f"(x {wc['x0']}..{wc['x1']} @y{wc['y']} rgb={wc['colour']})  "
+          f"card_faces={faces['runs']} coverage={faces['coverage']} rgb={faces['colour']}")
     for i, sec in enumerate(m["sections"]):
         print(f"    section {i}: y {sec['y'][0]}..{sec['y'][1]} "
               f"h={sec['height']:3d} lines={sec['lines']}")
@@ -254,6 +337,8 @@ def compare(m, base):
     print(f"  vs baseline: content width {m['content']['width'] - ref['content']['width']:+d} px, "
           f"window width {m['window']['w'] - ref['window']['w']:+d} px, "
           f"sections {m['section_count'] - ref['section_count']:+d}, "
+          f"card faces {m['card_faces']['runs'] - ref['card_faces']['runs']:+d} "
+          f"(coverage {m['card_faces']['coverage'] - ref['card_faces']['coverage']:+.3f}), "
           f"widest control {m['widest_control']['run'] - ref['widest_control']['run']:+d} px")
 
 

@@ -111,6 +111,9 @@ fixture 內只有標明實測的值可用（見 `tools/webstub/README.md`）。�
 2. **左右兩欄語意交錯**，讀起來對不上。左欄是 Swap 檔案、ZRAM 大小、Swap 總量、VRAM、共享記憶體 never、碎片整理 1、頁面鎖定不公平性 5；右欄是 Swap 狀態、ZRAM 狀態、Swappiness、大記憶體頁面 madvise、壓縮積極性 20、頁面鎖定不公平性 1。同一欄混了「名稱+值」與不同主題。
 3. **控制件尺寸懸殊**：Select 寬 **1,085 px**、「調整 Swap」按鈕滿版；同一卡內 Swappiness 的輸入框與「設定」按鈕只有幾十 px 寬。
 4. **Card 沒有可見邊界**（暗色主題下實測截圖看不出邊框）→ 六個區塊視覺上連成一條長欄，這是「擠在一起」感受的主要來源。
+   **Step 2 已修**：量測指標 `card_faces`（卡片面覆蓋率）從 **0 → 0.726–0.808**，可見卡數
+   **0 → 4**（1280×800）／**5**（4K）；這個指標在 Step 1 之後仍然是 0，所以它正好把「有沒有邊界」
+   變成一個數字。詳見 §5.6 與 `tools/ui1shots/README.md`。
 5. **Checkbox 未勾選時對比過低**：方塊幾乎看不見；文字「頁面鎖定不公平性 (5)」在 fold 附近時只剩文字可讀。
 6. **1280×800 一屏內只露出 3/6 個區塊**（系統狀態、Swap 設定、記憶體設定開頭）。
 
@@ -265,12 +268,37 @@ native 對應：現在的 `container.NewGridWithColumns(2)` 讓語意交錯（§
 theme 也沒有 Card 適用的邊框色名（`ColorNameBorder` 不存在，只有 `theme.ColorNameSeparator`）。
 實測在 `#171718` 背景上看不出邊界，所以六個區塊連成一條長欄。
 
-三條修法（選 a 或 b）：
+三條修法（**已採 (b)**，2026-11-11）：
 
 - **(a)** 區塊外層蓋一層 `canvas.Rectangle`（`StrokeColor = th.Color(theme.ColorNameSeparator, v)`、
   `StrokeWidth = 1`、`CornerRadius` 對齊 §4 的 radius），內容放其上。
+  **實測不可行**：暗色 theme 的 separator 對視窗背景的 WCAG 對比只有 **1.17**（等於看不見），
+  不滿足 §4 要把區塊分開的目的。`ui/fyneui/section_card.go` 因此自定邊框色 `ColorSectionBorder`
+  (72,76,84)，對比 **2.08**（測試 `TestSectionBorderBeatsTheThemeSeparator` 守住這個比較）。
 - **(b)** 不用 Card，改用自訂的 card-like 容器（同一個 Rectangle 描邊 + 背景色），好處是 padding 可控。
+  **已實作**：`sectionCard()` 用自訂 `sectionLayout`，內距走 §4 的 token（`SpaceCardPad` 24、
+  `SpaceCardRowGap` 16）；Card 會忽略這些值（它用 `theme.InnerPadding()` = 8）。
+  要點：`canvas.Rectangle` 在 v2.7.4 沒有 `SetStroke()`，邊框是 `StrokeColor`/`StrokeWidth` 兩個欄位；
+  Rectangle 放容器第一个物件，由 layout 拉到整塊尺寸，描邊才会跟著內容而不是第二個獨立的框。
 - **(c)** 底線：區塊之間至少加一條 1px 分隔線（`theme.ColorNameSeparator`）。
+
+**採 (b) 之後才發現的兩個連帶缺陷**（不處理就等於邊框白畫）：
+
+1. **卡與卡的間距只有 4 px**：`container.NewVBox` 的 children 間距是 `theme.Padding()` = 4，
+   兩張卡的 1 px 描邊幾乎貼在一起，變成雙線。`stackSections()` 插入 `--s-6` 32 px 的
+   `sectionGap`（實測量到 40 px，= 32 + 2×4）。
+2. **控件陷進卡片**：卡片面 (34,35,39) 與 Fyne 預設輸入框底色 (40,41,46) 對比 **1.08** →
+   theme 提供 `ColorInputSurface` (16,17,19)，對比 **1.20**
+   （`TestControlsStaySeparableFromTheCardFace` 同時鎖住兩側：我們的必須 ≥ 1.2，
+   Fyne 預設值必須 < 1.2，否則這個覆蓋就是多餘的）。
+
+**空間代價**（1280×800，`CRYOUTILS_UI_DEBUG=1` 的 `content.MinSize()`）：
+UI-1 前 1339 px → Step 1（字級）1469 px → Step 2（邊框+內距+卡間距）1867 px。
+視窗可見高 749 px，所以 Deck 原生解析度從 1.8 屏變成 **2.5 屏**（§2.7 第 6 點變严重，
+不是變好）。可用的回收：`--s-5` 24→16 省約 112 px、`--s-6` 32→24 省 48 px，或用 §5.7 的
+nav rail（§5.7）降低對捲動的依賴。
+**[DECIDED] 2026-11-11（用戶）：接受較多捲動，§4 的間距階梯不收。** Step 3 拆完 Status 卡、
+Step 6 的 nav rail 上去之後再量一次總頁高（量法見上），到時才判斷 1280×800 需不需要縮階梯。
 
 **Checkbox**：未勾選方塊要能看到邊框；列高對齊 §4.3 的 44 px。要「整列可點」得自己做（外層 Row 的
 Tappable 轉呼 `Check.Toggle()`），但**不得**因此繞過 `syncing` 守衛（P0.10 規則，見 `todo.md` UI-1 紅線）。
@@ -341,12 +369,20 @@ Tappable 轉呼 `Check.Toggle()`），但**不得**因此繞過 `syncing` 守衛
 ### native（本輪）
 
 - [ ] 單一控制件寬 ≤ 400 px（現況 native Select 實測 1,085 px）
+      **量法要改**：Step 2 之後最長的一段同色變成卡片面（1280 量到 1,096 px，rgb (34,35,39)），
+      `widest_control` 直接讀會误判。Step 4 之前先排除與 `card_faces.colour` 同色的像素，
+      或改測控件描邊（見 `tools/ui1shots/README.md`）
 - [ ] 同一卡內所有 label 起點 x 相同（±2 px）；Swap 的「大小 + 調整按鈕」與「Swappiness + 設定按鈕」
       兩行要落到同一組欄位（native 現況：兩行的控件位置由 Flex 決定，沒有共同欄位）
 - [ ] Memory 五行的**值欄起點** x 相同（±2 px），且值不藏在 label 括號裡
 - [ ] Status 卡內中間空白 ≤ 240 px（現況 native 兩欄之間 478 px）
-- [ ] 五個區塊的邊界可見（Card 描邊或分隔線，§5.6）
-- [ ] 1280×800 一屏至少露出 4 個區塊（現況 3 個）；Presets 要在 fold 內
+- [x] 五個區塊的邊界可見（Card 描邊或分隔線，§5.6）— **Step 2 已達（2026-11-11，dev）**：
+      `card_faces` 覆蓋率 0 → **0.726–0.808**，可見卡數 0 → **4**（1280×800）／**4**（2560）／**5**（4K）；
+      截圖 `tools/ui1shots/baseline/after-step2-*`。真機驗收待用戶看 4K 與 Deck 原生
+- [x] 1280×800 一屏至少露出 4 個區塊（現況 3 個）— **Step 2 已達**：量到 4 張卡面
+      （`card_faces.runs`，`after-step2-1280x800-*.json`）。
+      但總頁高從 1339 → 1867 px（§5.6 空間代價），捲動量增加；Presets 在 fold 內這條
+      要重新確認（Step 6 的顺序調整後再量）
 - [ ] VRAM 不再是獨立卡（§5.5）
 - [ ] nav rail：≥1200 logical px 時可見、5 個項目；點任一項目後 `vScroll.Offset().Y` 達到該區塊的
       `Position().Y`（±4 px）；<1200 時不存在

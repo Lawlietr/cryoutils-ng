@@ -11,13 +11,13 @@
    24
   ],
   "window": {
-   "x0": 0,
-   "y0": 0,
-   "x1": 1278,
-   "y1": 799,
-   "w": 1279,
-   "h": 800,
-   "screen_ratio": 0.999
+   "x0": 12,
+   "y0": 4,
+   "x1": 1274,
+   "y1": 795,
+   "w": 1263,
+   "h": 792,
+   "screen_ratio": 0.987
   },
   "header_bottom_y": 43,
   "content": {
@@ -25,7 +25,7 @@
    "right": 1188,
    "width": 1098,
    "ratio": 0.858,
-   "centre_offset": 0.5
+   "centre_offset": -3.5
   },
   "widest_control": {
    "run": 1086,
@@ -39,6 +39,12 @@
    "y": 535
   },
   "section_count": 13,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
@@ -386,15 +392,15 @@
    {
     "y": [
      789,
-     796
+     795
     ],
-    "height": 8,
+    "height": 7,
     "lines": 1,
     "line_detail": [
      {
       "y": [
        789,
-       796
+       795
       ],
       "clusters": [
        [
@@ -420,13 +426,13 @@
    24
   ],
   "window": {
-   "x0": 0,
-   "y0": 0,
-   "x1": 1278,
-   "y1": 799,
-   "w": 1279,
-   "h": 800,
-   "screen_ratio": 0.999
+   "x0": 12,
+   "y0": 4,
+   "x1": 1274,
+   "y1": 795,
+   "w": 1263,
+   "h": 792,
+   "screen_ratio": 0.987
   },
   "header_bottom_y": 43,
   "content": {
@@ -434,7 +440,7 @@
    "right": 1188,
    "width": 1098,
    "ratio": 0.858,
-   "centre_offset": 0.5
+   "centre_offset": -3.5
   },
   "widest_control": {
    "run": 1086,
@@ -448,6 +454,12 @@
    "y": 535
   },
   "section_count": 13,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
@@ -795,15 +807,15 @@
    {
     "y": [
      789,
-     796
+     795
     ],
-    "height": 8,
+    "height": 7,
     "lines": 1,
     "line_detail": [
      {
       "y": [
        789,
-       796
+       795
       ],
       "clusters": [
        [
@@ -857,6 +869,12 @@
    "y": 1217
   },
   "section_count": 11,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
@@ -1189,6 +1207,12 @@
    "y": 1217
   },
   "section_count": 11,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
@@ -1521,6 +1545,12 @@
    "y": 1289
   },
   "section_count": 17,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
@@ -1991,6 +2021,12 @@
    "y": 1289
   },
   "section_count": 17,
+  "card_faces": {
+   "colour": null,
+   "runs": 0,
+   "coverage": 0.0,
+   "y_ranges": []
+  },
   "sections": [
    {
     "y": [
