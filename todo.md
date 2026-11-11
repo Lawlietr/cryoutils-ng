@@ -628,6 +628,11 @@
         只有 4K 看得到 cap 的價值
       - **最寬控件 1086 px**（文件 §2.7 記 1,085）→ Step 4 的目標是壓到 ≤320 logical px
       - Status 各行 **dead gap 431–475 px**（文件 §2.7 記 478）→ Step 3 的定義列表要消掉它
+
+      Step 1 後的對比（`after-step1-geometry.json`，六張 `after-step1-*.png`）：
+      內容寬與控件寬不變（1098／1086 不變 — cap 與 Select 都不是 Step 1 的範圍），
+      單行高度 15–16 → 17–19 px、區塊標題帶 25 → 31 與 28 → 35 px（字級 token 生效的實證），
+      dead gap 475 → 465 px（Step 3 才處理），可見區塊數 14 → 13（1280×800）。
       - OCR（`tesseract -l chi_tra`）驗證中文實際渲染（`系統狀態`、`Swap 檔案`、`共享記憶體`）→ 字型 gate 過
       - 新觀察：Dev VM 的 baseline 上 **`VRAM: 93GB`**（llvmpipe 的 `glxinfo` 值）→
         再證明「VRAM 讀值不穩定」那條；這些 PNG 是**幾何**基準，不是 SteamOS 狀態基準
@@ -638,6 +643,21 @@
       把 §4 token 映到 `SizeNameText`、`SizeNameHeadingText`、`SizeNameSubHeadingText`、
       `SizeNameCaptionText`（名稱是 `helperText`）、`SizeNamePadding`、`SizeNameInnerPadding`、
       `SizeNameSeparatorThickness`
+- [x] **Step 1 — theme wrapper（完成 2026-11-11，Dev VM）**：新增 **`ui/fyneui/theme.go`**。
+      v2.7.4 的 interface 只有 `Color`／`Font`／`Icon`／`Size` 四個方法，沒有 `NewTheme` 建構子
+      → 寫一層 `customTheme` 包住 `theme.DarkTheme()`。§4 的三條階梯變成 Go 常數
+      （間距 7 級、字級 6 級、控件 4 條），`tokenSize()` 映到 `SizeNameText`、`SizeNameHeadingText`、
+      `SizeNameSubHeadingText`、`SizeNameCaptionText`、`SizeNamePadding`、`SizeNameInnerPadding`、
+      `SizeNameSeparatorThickness`。字型覆蓋搬到 `cjkFont()`（`fonts.go`）。
+      預設值已實測：`text` 14、`helperText` 11、`subHeadingText` 18、`headingText` 24、
+      `padding` 4、`innerPadding` 8、`separator` 1 → token 為 16／12／25／31／4／8／1。
+      六支守門測試在 `theme_test.go`（token 真覆蓋 Fyne 預設、未對映的名字 fall through、
+      間距階梯恰好 7 級且在 8px 網格上、`--fs-body` 起必須 1.25 倍、不准發明階梯外的值、
+      CJK 字型仍在）。`TestMemorySectionBuildNeverTogglesAnything` 仍綠（P0.10 紅線）。
+      **兩個要記住的結論**：(1) Fyne 只有 `padding`/`innerPadding` 兩層 size name，
+      `--s-3 … --s-7` 在 theme 層放不進去（只能由容器用常數加），所以 Step 1 單獨存在時
+      **不會讓版面變整齊**；(2) 字變大的直接代價是垂直容量下降：1280×800 最後一條只露出 8 px
+      （被視窗切掉）、2560 也到底 → **Step 3–5 必須把垂直空間還回來**。
 - [ ] Step 2 — 區塊邊界：Fyne 的 `Card` renderer 用 `NewShadowingRenderer(…, CardLevel)` →
       **只有陰影沒有邊框**，theme 也沒有 Card 邊框色名。要自畫 `canvas.Rectangle`
       （`StrokeColor` = `theme.ColorNameSeparator`、`StrokeWidth = 1`），或改自訂 card-like 容器
