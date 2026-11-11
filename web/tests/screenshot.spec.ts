@@ -10,7 +10,7 @@ test.describe('CryoUtils NG UI', () => {
   test('shows swap settings section', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('h2', { hasText: 'Swap Settings' })).toBeVisible()
-    await expect(page.locator('label', { hasText: 'Swap Size' })).toBeVisible()
+    await expect(page.locator('label', { hasText: 'Swap File Size' })).toBeVisible()
     await expect(page.locator('label', { hasText: 'Swappiness' })).toBeVisible()
   })
 

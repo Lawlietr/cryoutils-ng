@@ -153,7 +153,7 @@ Project name confirmed: **CryoUtils NG**.
 - Unit tests in `core/` (ported from `internal/util_test.go`).
 - Status verified via CLI `status` command or `GET /api/status`.
 - Headless screenshots at 4K + 1280×800; CLI smoke (`status`/`recommended`/`stock`).
-- **Web UI 檢視用假 API**：`python3 tools/webstub/stub.py`（fixture 在 `tools/webstub/fixtures/`，說明見 `tools/webstub/README.md`）。Dev VM 是 LXC，沒有 swap file / zram / `glxinfo`，跑真的 `cryoutils-ng-desktop -ui web` 時 status 區全是空或 `unknown`，正在檢視的部分剛好被藏起來，所以用 fixture 假裝成真 Deck 才會出現的狀態。配對截圖：`cd web && BASE_URL=http://127.0.0.1:8099 npx playwright test`（用 chrome 直接截圖的模式要加 `--no-sse`，否則等網路 idle 的 mode 永不結束）。
+- **Web UI 檢視用假 API**：`python3 tools/webstub/stub.py`（fixture 在 `tools/webstub/fixtures/`，說明見 `tools/webstub/README.md`）。Dev VM 是 LXC，沒有 swap file / zram / `glxinfo`，跑真的 `cryoutils-ng-desktop -ui web` 時 status 區全是空或 `unknown`，正在檢視的部分剛好被藏起來，所以用 fixture 假裝成真 Deck 才會出現的狀態。配對截圖：stub 加 `--no-sse`，再 `cd web && BASE_URL=http://127.0.0.1:8099 npx playwright test`（不加就會卡：spec 用 `waitForLoadState('networkidle')`，而 open 的 SSE 讓 network idle 永不達到）。
   - **它只 bind `127.0.0.1`**（與真 server 同樣的邊界；沒有 auth 的東西綁到 LAN 等於把 web build 送出去）。
   - **它不做任何寫入**：`POST /api/*` 一律回 `success: true` 但什麼都不改。任何關於 core 或 API 正確性的結論都不能從它取得。
   - fixture 中只有標明實測的值可用（五個 unit 參數 = `core/config.go` 與 `docs/unit-params-sudo-stdin.md` §8.3）；swap 大小、zram 大小、`Swappiness`、`VRAM` 未標明時是示意值，**不可**當作 SteamOS 的真實數字引用。

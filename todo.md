@@ -428,6 +428,38 @@
 
 ---
 
+## P0.11: web UI 驗證鏈（2026-11-11 開出）
+
+把 web UI 的無頭驗證真正跑起來時發現的三個缺口。已修的標 ✅，未做的標 `[ ]`。
+
+### 已修（2026-11-11，Dev VM）
+- [x] **`web/package.json` 沒宣告 Playwright，但 `package-lock.json` 有**：`npm ci` 會直接把
+    `@playwright/test`、`playwright`、`playwright-core` **移除**（`npm ci --dry-run` 實測），
+    也就是任何乾淨環境裝完相依套件之後 `npx playwright test` 就不存在——
+    本機能跑只是因為 `node_modules` 是早前留下的。已補 devDeps `@playwright/test` 與 `playwright`
+    （`^1.62.1`，與 lock 已解析的版號一致），lock 已同步，`npm ci --dry-run` 不再移除
+- [x] **`web/tests/screenshot.spec.ts` 的斷言與 UI 文案脫節**：找 `label` 裡的 `Swap Size`，
+    但實際是 `swap.swapSizeGB` = `Swap File Size (GB)`（`Swap Size` 只剩 status 卡的 `<span>`）
+    → 該測試在兩個 project 都紅。已改為 `Swap File Size`
+- [x] **驗證鏈可用**：`python3 tools/webstub/stub.py --no-sse` + `BASE_URL=http://127.0.0.1:8099 npx playwright test`
+    → 14 passed（兩個 project × 7 測試），4K 與 1280×800 截圖重新產生
+
+### 待辦
+- [ ] **CI 完全沒有跑 web UI 測試**：`.github/workflows/release.yml` 只有 `cd web && npm ci && npm run build`，
+    `playwright.config.ts` 為 CI 準備的 `webServer`（`npm run preview`）從未被觸發。要做：
+    1. 加 UI 驗證步驟：`npm ci` → `npx playwright install chromium`（需要的 browser build 版號由
+       `node_modules/playwright-core/browsers.json` 決定，cache 裡的舊 build 不算）→ 跑 `npx playwright test`
+    2. `npm run preview` 不提供 `/api/status`，status 區會是空的或 `unknown`，
+       **P0.10 的顯示在 CI 看不到**。兩條修法：**(a)** spec 用 `page.route('**/api/status', …)`
+       直接吃 `tools/webstub/fixtures/*.json`（不需要任何 server）；**(b)** job 裡起
+       `python3 tools/webstub/stub.py --no-sse`，走與本機相同的路
+    3. 建議 **(a)**：fixture 是單一來源，且 CI 不用維持一支 Python server
+- [ ] **spec 的等待條件要寫對**：`waitForLoadState('networkidle')` 在 API 保持連線（open SSE）時
+    永不達到。走 (a) 之後 spec 不依賴 server；若仍要接 stub，**必須加 `--no-sse`**（實測不加時該測試逾時失敗）
+- [ ] `web/tests/screenshots/` 那兩張 PNG 入版控、且由 fixture（假資料）產生：要嘛保留並標明
+    provenance（已在 `tools/webstub/README.md` 標明），要嘛改成 CI artifact 上傳、版控不存二進位
+
+---
 ## Phase 7 (future): Decky Loader Plugin
 - [ ] React frontend reused from Phase 4
 - [ ] Python shim calling CLI binary (`main.py`, `plugin.json`)

@@ -14,11 +14,10 @@
 ## 怎麼跑
 
 ```bash
-python3 tools/webstub/stub.py                    # 預設 fixture：deck-recommended
+python3 tools/webstub/stub.py --no-sse           # 預設 fixture：deck-recommended
 python3 tools/webstub/stub.py --list             # 列出所有 fixture 與說明
 python3 tools/webstub/stub.py --fixture deck-factory
 python3 tools/webstub/stub.py --verbose          # 印出每個請求
-python3 tools/webstub/stub.py --no-sse           # 見下方「截圖用」
 ```
 
 開瀏覽器連 `http://127.0.0.1:8099/`。注意它 serve 的是 `web/dist`（已建置的產物，
@@ -28,33 +27,43 @@ python3 tools/webstub/stub.py --no-sse           # 見下方「截圖用」
 `web/vite.config.ts` 沒有設 API proxy，所以 `npm run dev` 的 Vite port 上沒有 `/api/*`。
 要在 Vite 的熱重載下看資料，就自己加 proxy 指到 8099，或直接走上面那條「先 build」的路。
 
-配對 Playwright（雙解析度截圖，見 AGENTS.md 的驗收規則）：
+## 配對 Playwright（雙解析度截圖，見 AGENTS.md 的驗收規則）
 
 ```bash
-cd web && BASE_URL=http://127.0.0.1:8099 npx playwright test
+python3 tools/webstub/stub.py --no-sse --port 8099      # 一個終端
+cd web && BASE_URL=http://127.0.0.1:8099 npx playwright test   # 另一個終端
 ```
 
+**跑 spec 時 stub 一定要加 `--no-sse`。** `/api/progress` 平常保持連線（跟真 server
+一樣），而截圖測試用 `waitForLoadState('networkidle')`，network idle 因此永不達到
+（實測那兩個測試逾時失敗）。加 `--no-sse` 後 `/api/progress` 回 501（EventSource
+對非 200 不重試），14 個測試全過，含 4K 與 1280×800 兩張截圖。
+
 `web/playwright.config.ts` 的 `baseURL` 讀 `BASE_URL`，預設 `http://127.0.0.1:33031`
-（那是真的 desktop server 的隨機 port）。CI 裡另有一條 `npm run preview` 路徑，
-它不提供 `/api/status`，所以 CI 的截圖 status 區會是空的。
-本機若 `npx playwright test` 抱怨 browser build 不存在，跑 `npx playwright install chromium`：
-repo 的 Playwright 版號與 `~/.cache/ms-playwright` 裡的 build 不一定對得上。
+（那是真的 desktop server 的隨機 port）。CI 沒有跑 Playwright；config 為 CI 準備的
+`npm run preview` 也不提供 `/api/status`，所以那條路徑即使跑起來，截圖的 status 區
+還是空的（待辦見 `todo.md`）。
 
-### 截圖用：加 `--no-sse`
+本機若 `npx playwright test` 抱怨 browser build 不存在，跑 `npx playwright install chromium`。
+需要的 build 版號由 `node_modules/playwright-core/browsers.json` 決定，與 cache 裡
+現有的 build 不一定對得上。
 
-`/api/progress` 通常會保持連線（跟真 server 一樣）。會等「網路 idle」
-再截圖的 headless 模式因此永不結束 —— 實測 `chrome-headless-shell --virtual-time-budget`
-在那種情況下 45 秒逾時而且不寫 PNG。加 `--no-sse` 後 `/api/progress` 回 501
-（EventSource 對非 200 不重試），截圖就能完成：
+## 用 chrome 直接截圖（不跑 spec）
+
+等網路 idle 的截圖模式一樣會被 open SSE 卡住，所以也要 `--no-sse`：
 
 ```bash
 python3 tools/webstub/stub.py --no-sse --port 8099
-# 另一終端：
+```
+
+另一終端：
+
+```bash
 "$CHROME_HEADLESS_SHELL" --headless --no-sandbox --window-size=1280,800 \
   --hide-scrollbars --virtual-time-budget=8000 --screenshot=out.png http://127.0.0.1:8099/
 ```
 
-不加 flag、改用 `page.goto()` + `waitForLoadState()` 的 Playwright 路徑不受這件事影響。
+不加 `--virtual-time-budget` 時截圖會在 fetch 完成前就按下，status 區會是初始值。
 
 ## fixture
 
@@ -63,11 +72,14 @@ python3 tools/webstub/stub.py --no-sse --port 8099
 | `deck-recommended` | 套用 Recommended 之後的 Deck | 五個 unit 參數的值 = `core/config.go` 的 recommended |
 | `deck-factory` | 出廠的 Deck：只有 zram、沒有 swap file | 五個 unit 參數的值 = 真機開機實測（`docs/unit-params-sudo-stdin.md` §8.3：`always / advise / 20 / 5 / 1`） |
 | `devvm-lxc` | Dev VM LXC 的真實 `/api/status` 擷取（2026-10-30） | 全部逐字保留，含 `SwapFile` 空但 `SwapSizeGB 1` 這種舊路徑的怪值 |
-| `parameters-unreadable` | 五個參數都讀不到（Value = `unknown`） | 這是刻意造的，用来驗 `status.unknown` 的顯示路徑 |
+| `parameters-unreadable` | 五個參數都讀不到（Value = `unknown`） | 這是刻意造的，用來驗 `status.unknown` 的顯示路徑 |
 
 每個 fixture 的 `_note` 欄位寫了它是實測還是示意值，`_` 開頭的欄位不會送到 client。
 swap 大小、zram 大小、`Swappiness`、`VRAM` 若未標明實測，就是示意值，
 **不可**當作 SteamOS 的真實數字引用。
+
+`web/tests/screenshots/` 那兩張入版控的截圖是從 `deck-recommended` fixture 產生的：
+它們用來看排版，不是真機的狀態參考。
 
 ## 安全邊界（必讀）
 
