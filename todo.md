@@ -2,6 +2,8 @@
 
 > **待提醒（已拍板、未施作）**：**UI-1 UI/UX 重新設計** — 範圍 = **只有 native**；IA = 單頁 + 左側 nav rail。
 > 文件：`docs/ui-redesign-plan.md`（決策清單在檔頭）。細節見本檔 UI-1 節。
+> **前置工作**：**P0.12**（CI 從未執行過，三個待拍板項在該節）。UI-1 的 **Step 0（基線截圖）不受阻，可立即進行**；
+> Step 3 之後的每一步都應該有 CI 的遠端紅綠，所以 P0.12 宜在 Step 3 之前完成。
 
 ## Phase 0.5: CI/CD Infrastructure ✅
 - [x] `.github/dependabot.yml` — gomod weekly, npm weekly, ignore npm major, 5 PR limit
@@ -464,6 +466,97 @@
 
 ---
 
+## P0.12: CI 從未執行過 + desktop 的 CGO 建置命令已失效（2026-11-11 開出）
+
+一輪 UI-1 的前置調查裡發現的。**先前在 AGENTS.md／對話中曾誤判為「CI 每次 push 都紅」，實測是 CI 一次都沒跑過**，
+以下全部是本輪實測數字。
+
+### 事實 1：`Main` workflow 從未有過任何一次執行
+
+- `gh api repos/Lawlietr/cryoutils-ng/actions/runs` → `total_count: 0`
+- `gh api .../actions/workflows/331011566/runs`（`Main` = `.github/workflows/release.yml`）→ `total_count: 0`
+- `gh api .../actions/permissions` → `{"enabled":true,"allowed_actions":"all"}` → **不是被停用**
+- 觸發條件永不成立：`release.yml:3-7` 是 `on: push: branches: [main, develop]`，但 remote 上只有
+  `dev`（`74b36a6`，全部重寫工作）與 `main`（`db020c2`，**2024-01-31**，fork 時從上游帶來的原 CryoUtilities 狀態）。
+  **`develop` 分支不存在**（`contents/.github/workflows/release.yml?ref=develop` → 404）。
+  所有 push 都進 `dev`，它不在觸發清單裡。
+- 本 repo 是 fork：`parent: CryoByte33/steam-deck-utilities`，2026-08-10 建立，`default_branch: main`。
+- `gh pr list --state all` → **零筆 PR**，所以 `dependabot-auto-merge.yml` 同樣從未執行。
+
+### 事實 2：CI 的 desktop 建置命令已經失效，而且永遠不會報錯
+
+- `release.yml:48`：`CGO_ENABLED=0 go build -ldflags="-s -w" -o cryoutils-ng-desktop ./cmd/desktop`
+- Dev VM 重現同一條命令的失敗訊息：
+  `imports cryoutils-ng/ui/fyneui → fyne.io/fyne/v2/internal/painter/gl → go-gl/gl/v2.1/gl:
+  build constraints exclude all Go files`（Fyne 的 GL driver 帶 `//go:build cgo` 條件）
+- 時間線：那條命令由 `e0c6235`（2026-08-11，Phase 4+5）寫下，**當時正確**（`cmd/desktop` 還只跑 web server）。
+  `ed88424`（2026-08-23，Fyne native UI）讓 `cmd/desktop/main.go:34` 開始 `import "cryoutils-ng/ui/fyneui"`
+  → 命令當場失效。AGENTS.md 同期已記錄「desktop 需 `CGO_ENABLED=1`」，**只有 CI 沒跟上**。
+
+### 事實 3：本地建置一直正常，所以真機驗收從未被這件事誤導
+
+- `CGO_ENABLED=1 /usr/local/go/bin/go build ./cmd/desktop` → 成功，**49,531,848 bytes**
+- `ldd` 實測含 `libGL.so.1`、`libX11.so.6`、`libGLX.so.0`、`libXau.so.6` → **動態連結**，
+  不是靜態單檔。若要把它當成 prebuilt 二进制發佈，必須同時寫明 runtime 相依。
+- 她 scp 上 Deck 的每一支二進位都是這樣來的 → 本地 gate 是有效的，只是沒有遠端 gate。
+
+### 事實 4：CI 沒有任何驗證步驟
+
+`grep -rn 'go test|go vet|playwright' .github/workflows/` → **NONE**。
+兩個 workflow 只有建置與上傳。本機三支 `ui/fyneui` 測試與 `core` 測試目前是綠的（實測 `ok 0.732s`、`ok 0.132s`），
+但沒有任何東西保證它們未來綠。
+
+### 事實 5：Dependabot 的目標分支也是錯的
+
+- `.github/dependabot.yml` 的兩個 entry（`/` gomod、`/web` npm）**都沒有 `target-branch`**
+  → PR 會落在 default branch `main`，也就是 2024-01-31 的上游舊狀態，不是 `dev`。
+- 目前零 PR，所以尚未造成實際損害；但一旦 Dependabot 找到更新，會自動往一個已放棄的分支開 PR，
+  而且 `dependabot-auto-merge.yml` 的 `on: pull_request`（無分支過濾）會對它執行 `gh pr merge --auto`。
+
+### 待你拍板（三項；這是本節唯一需要你的部分）
+
+- [ ] **(A) 分支模型**：把 `dev` 加進 `on: push` 的分支清單？還是把 `dev` 改名 `develop`／開始把 `dev` 併回 `main`？
+    AGENTS.md 寫的是 gitflow，但 remote 上只有 `dev` 與 `main`，`develop` 不存在。
+    這條決定事實 1、事實 5 與 Dependabot 目標分支三處。
+- [ ] **(B) 版號與 release 名稱**：CI 一跑起來就會發佈。`release.yml:10` 是 `release_name: 2.0-${{ github.run_number }}`，
+    `main-release` 還會 `gh release delete latest` 再重建 `latest`。本地 tags 裡有上游帶過來的
+    `2.0-8`／`2.0-9`／`2.0-87`／`latest`／`develop`。這與 Phase 5.6 拍板的 `v0.1.0`／`v0.2.0` 方案直接衝突
+    （見本檔 line 165 那條「版本號 `v0.1.0` → `v0.2.0` 待用戶確認」）。
+    **建議：先改名再讓 CI 上線**，否則第一次觸發就多一個 public release。
+- [ ] **(C) desktop 要不要經 CI 產出**：
+    - 要 → `CGO_ENABLED=1` + apt `libgl1-mesa-dev xorg-dev`（build 端），且產物是動態連結（見事實 3）→
+      要把 runtime 相依寫進 `docs/manual-install.md` 與 README。runner 是否從 `ubuntu-22.04` 升到 `ubuntu-24.04`
+      （與 Dev VM 對齊，避免 glibc/GL 版本差異）也一起決定。
+    - 不要 → CI 只 build CLI，desktop 維持本機 build —— 這才是 AGENTS.md 現在寫的做法（「Not published via
+      Releases — users build from source」）。**建議先走這條**，風險最低、改動最小，之後要 prebuilt 再開一輪。
+
+### 施作（Dev VM，不需要 Deck；(A)(B)(C) 有答案後半小時內可完成）
+
+- [ ] 依 (A) 修 `release.yml:3-7` 與 `dependabot.yml` 的 `target-branch`
+- [ ] 依 (B) 改 `release_name`，必要時先手動建一個正式 tag（`v0.2.0`）
+- [ ] 依 (C) 拆建置：CLI 維持 `CGO_ENABLED=0` 靜態單檔；desktop 移除或改 `CGO_ENABLED=1` + apt 相依
+- [ ] 加 fail-fast 測試步驟（放在 build 之前）：
+    `cd core && CGO_ENABLED=0 go test ./...`、root module `CGO_ENABLED=1 go vet ./...`、
+    `CGO_ENABLED=1 go test ./ui/fyneui/...`（三支本機 headless 已綠；若 CI 需要顯示，用 `xvfb-run` + apt `xvfb`）
+- [ ] 接 P0.11 的 web UI 驗證（走建議的 (a)：spec 用 `page.route('**/api/status', …)` 讀
+    `tools/webstub/fixtures/*.json`，CI 不起 Python server；`npx playwright install --with-deps chromium`）。
+    Dev VM 這側已可用：Node `v24.22.2`、`web/node_modules` 54 MB、`~/.cache/ms-playwright/chromium-1234` 都在
+- [ ] 第一次上線後確認 GitHub 上出現一次完整綠的 run，且 Release 頁沒有意外產物
+
+### 環境注記（2026-11-11）
+
+- **AGENTS.md 的「Node 未裝」已過時**：Node `v24.22.2` 在 `/root/.local/share/pi-node/current/bin/`
+  （pi 自帶的 runtime，`node`/`npm`/`npx` 都可用）。web 的依賴與 Playwright 也已就位。
+  `df -h /` 可用 **22 GB**（遠高於 3 GB 閾值）。這條要在 AGENTS.md 更正。
+
+### 與 UI-1 的先後關係
+
+- **不阻塞 UI-1 Step 0/1/2**：push 到 `dev` 不會觸發任何東西，本機 gate（三支測試 + `go vet` + Xvfb 截圖）已可用。
+- **阻塞建議在 Step 3 之前**：Step 3 起改動面擴大（拆 Status 卡、拿掉 `NewGridWithColumns(2)`、VRAM 卡消失），
+  沒有遠端紅綠就無法在幾天後回答「這一改是不是回歸了舊缺陷」。
+
+---
+
 ## UI-1: UI/UX 重新設計（2026-11-11 開出，**未施作**）
 
 用戶回饋：UI 比原始項目彆腳、設置擠在一起、大小排序不整齊、不美觀。本輪只做**量測與設計規格**，
@@ -505,6 +598,11 @@
 
 ### 施作順序（native only；每步都要過 gate）
 
+- [ ] **Step 0 — 基線（先做，不需你在場）**：把 `docs/ui-redesign-plan.md` 附錄 A 的截圖／量測片段收進
+      `tools/`（建議 `tools/ui1shots/`），產生 native 的 **`-before` 基線**：三解析度
+      （1280×800 / 2560×1440 / 3840×2160）×（zh-TW／en）。**現況盤上沒有任何 native 截圖**
+      （實測 `find` 只有 `web/tests/screenshots/` 那兩張 web PNG 與兩個 icon），
+      沒有基線就無法證明 Step 1 之後的效果，也無法證明沒回歸。同步確認三支測試綠（本輪實測 `ok 0.732s`）。
 - [ ] Step 1 — theme wrapper：新增一個包住 `theme.DefaultTheme()` 的 `fyne.Theme` 實作。
       v2.7.4 的 interface 只有 `Color`／`Font`／`Icon`／`Size` 四個方法，**沒有 `NewTheme` 建構子**。
       把 §4 token 映到 `SizeNameText`、`SizeNameHeadingText`、`SizeNameSubHeadingText`、
@@ -536,6 +634,9 @@
       （「把狀態同步進 widget」不等於「接受使用者輸入」）
 - [ ] 換 Select 實作要重跑 `ui/fyneui/swap_select_test.go`（P0.8：下拉要跟隨真實大小）與
       `ui/fyneui/refresh_test.go`
+- [ ] **本輪不跑 `npm run sync-loc`**：它會把 `../i18n/locales/*.json` 覆蓋進 `web/src/locales/`，
+      與「本輪不動 `web/src/`」抵觸。nav rail 的 5 個新鍵只進 `i18n/locales/en.json` 與 `zh-TW.json`；
+      web 沒有 nav rail、不引用那些鍵，所以少鍵不會壞。要同步時另外單獨一輪做
 - [ ] 不動 `core/` 行為與既有 locale 鍵語意（新增 nav rail 標籤鍵除外）；**本輪不動 `web/src/`**；
       web 端不補 sudo 密碼輸入（P0.5 缺口是獨立議題）
 - [ ] 垂直節奏不用改（實測本來就是一致的，見 §2.8）
