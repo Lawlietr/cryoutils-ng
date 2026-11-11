@@ -1,0 +1,25 @@
+{
+  "_note": "A Deck as it ships: zram only, no swap file. The five unit parameter values are the boot values measured on the real Deck (docs/unit-params-sudo-stdin.md section 8.3): always / advise / 20 / 5 / 1. Huge Pages and shared memory in THP therefore read recommended=true, because Valve already ships the recommended value. Swappiness, zram size and VRAM are illustrative.",
+  "status": {
+    "SwapFile": "",
+    "SwapSizeGB": "0",
+    "ZramSizeGB": "7",
+    "ZramActive": "true",
+    "TotalSwapGB": "7",
+    "Swappiness": "100",
+    "VRAM": "1024MB",
+    "HugePages": "true",
+    "HugePagesValue": "always",
+    "ShMem": "true",
+    "ShMemValue": "advise",
+    "CompactionProactiveness": "false",
+    "CompactionProactivenessValue": "20",
+    "Defrag": "false",
+    "DefragValue": "5",
+    "PageLockUnfairness": "true",
+    "PageLockUnfairnessValue": "1"
+  },
+  "libraries": [
+    "/home/deck/.local/share/Steam"
+  ]
+}

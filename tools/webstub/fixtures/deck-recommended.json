@@ -1,0 +1,26 @@
+{
+  "_note": "A Deck after Recommended was applied. The five unit parameter values are this app's recommended set (core/config.go); swap size, zram size and VRAM are illustrative.",
+  "status": {
+    "SwapFile": "/home/swapfile",
+    "SwapSizeGB": "16",
+    "ZramSizeGB": "7",
+    "ZramActive": "true",
+    "TotalSwapGB": "23",
+    "Swappiness": "1",
+    "VRAM": "1024MB",
+    "HugePages": "true",
+    "HugePagesValue": "always",
+    "ShMem": "true",
+    "ShMemValue": "advise",
+    "CompactionProactiveness": "true",
+    "CompactionProactivenessValue": "0",
+    "Defrag": "true",
+    "DefragValue": "0",
+    "PageLockUnfairness": "true",
+    "PageLockUnfairnessValue": "1"
+  },
+  "libraries": [
+    "/home/deck/.local/share/Steam",
+    "/run/media/mmcblk0p1"
+  ]
+}

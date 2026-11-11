@@ -1,0 +1,23 @@
+{
+  "_note": "Every unit parameter unreadable: core reports Value unknown and the boolean falls back to false (P0.10). Exercises the status.unknown path in both UIs. Happens on a custom kernel that does not expose the parameter, or when a read is denied.",
+  "status": {
+    "SwapFile": "",
+    "SwapSizeGB": "0",
+    "ZramSizeGB": "0",
+    "ZramActive": "false",
+    "TotalSwapGB": "0",
+    "Swappiness": "0",
+    "VRAM": "unknown",
+    "HugePages": "false",
+    "HugePagesValue": "unknown",
+    "ShMem": "false",
+    "ShMemValue": "unknown",
+    "CompactionProactiveness": "false",
+    "CompactionProactivenessValue": "unknown",
+    "Defrag": "false",
+    "DefragValue": "unknown",
+    "PageLockUnfairness": "false",
+    "PageLockUnfairnessValue": "unknown"
+  },
+  "libraries": []
+}

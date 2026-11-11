@@ -88,6 +88,9 @@ cryoutils-ng-desktop
 
 # Node modules
 node_modules/
+# Python bytecode (tools/webstub/)
+__pycache__/
+*.pyc
 
 # Test results
 web/test-results/

@@ -1,0 +1,23 @@
+{
+  "_note": "Verbatim capture from the Dev VM LXC on 2026-10-30, taken from the real desktop binary's /api/status. It is degenerate on purpose: no swap file, no zram, no glxinfo. SwapFile empty with SwapSizeGB 1 is what the old status path returned and is kept as captured.",
+  "status": {
+    "SwapFile": "",
+    "SwapSizeGB": "1",
+    "ZramSizeGB": "0",
+    "ZramActive": "false",
+    "TotalSwapGB": "0",
+    "Swappiness": "60",
+    "VRAM": "100MB",
+    "HugePages": "false",
+    "HugePagesValue": "madvise",
+    "ShMem": "false",
+    "ShMemValue": "never",
+    "CompactionProactiveness": "false",
+    "CompactionProactivenessValue": "20",
+    "Defrag": "false",
+    "DefragValue": "1",
+    "PageLockUnfairness": "false",
+    "PageLockUnfairnessValue": "5"
+  },
+  "libraries": []
+}
