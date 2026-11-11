@@ -48,9 +48,14 @@
 
 ## UI Design Decisions (locked)
 - **Single page, vertical single column** — no tabs (original's tabs deemed redundant).
+- **單頁 + 左側 nav rail（UI-1，用戶拍板 2026-11-11，**未施作**）**：≥1200 logical px 時左側 200 px 錮點列（5 個區塊，
+  點一下捲到該區），Deck 1280×800 與更窄時隱藏；響應式 tab 與摺疊區塊已**否決**（不抵觸上一條）。
+  nav rail 不得被 5 秒刷新重建。規格與實測依據見 `docs/ui-redesign-plan.md`，工作項見 `todo.md` UI-1。
 - **No password unlock** — Steam Deck 環境預設信任同機使用者；token 已提供 API 安全層。
 - **Responsive**: `clamp()` fluid fonts + `max-width` + compact breakpoint. Must render correctly at **3840×2160 (4K)** and **1280×800 (Steam Deck native)**.
-- **VRAM section is read-only** (actual VRAM change is via BIOS).
+- **VRAM section is read-only** (actual VRAM change is via BIOS)。UI-1 後它不再是獨立卡：改呈現為
+  Status 卡 A 的一行（`VRAM: <值 or unknown>（BIOS 控制）`，說明變 hint），因為 `GetVRAMValue()` 依賴
+  `glxinfo`、讀不到時更要省空間。
 - Long tasks (swap resize) show a top-of-page progress bar via SSE, never lost on scroll.
 - Headless browser (Playwright) verification at both resolutions on dev box; final visual acceptance on real Deck.
 - **Native Fyne UI（Phase 6.5）**：第二種 UI 路徑（`-ui native`）；**dark theme**、同樣單頁直式版面、嵌入 Noto Sans TC、**runtime drop-in 語言切換**（`~/.cryoutils_ng/locales/*.json` 免重編）。詳見 `docs/fyne-ui-plan.md`。
@@ -177,6 +182,13 @@ Project name confirmed: **CryoUtils NG**.
 - **P0.8**: 真機 feedback 第二批 — 雙重 sudo 密碼提示（裸 `sudo` 會碰 tty）與 native UI swap 下拉 freeze — 已修正並真機結案（2026-10-20）
 - **P0.9**: unit 參數（hugepages / shared memory in THP / compaction proactiveness / hugepage defrag / page lock unfairness）不可偵測與不可用 — 根因：`runSudoWithInput` 用 `sudo -S` 但**缺 `-k`**，sudo 在 timestamp 快取態下不讀 stdin，**密碼那一行被 `tee` 當值寫進 sysfs**（kernel EINVAL → `tee` exit 1 → 每次 toggle 都報錯）；另有狀態讀取不必要地走 root（web 模式無密碼入口 → 五個值永遠 false）。**已修正並已 Deck 真機結案（2026-10-30）**；順帶修掉**明文 sudo 密碼外洩到 log**（log mode 0666 → 0600 + `e.redact()`）。實證與規格見 **`docs/unit-params-sudo-stdin.md`**，工作項見 `todo.md` P0.9
 - **P0.10**: 真機 feedback 第三批 — 主因是 **Fyne 的 `Check.SetChecked()` 會回呼 `OnChanged`**，導致 app 啟動/重建卡片時自己把已達 recommended 的參數翻掉（她看到的「Huge Pages 每次重啟後取消勾選」）；已加 `syncing` 守衛並用 fake sudo 寫了能在 unit 層重現的測試。同輪把五個參數的**真實值**呈現到 CLI / native / web（`UnitState`、`<Param>Value`、`unknown`），並實測 SteamOS 出廠值（`always / advise / 20 / 5 / 1`）寫進 `core/config.go` 註解。**已 Deck 真機結案（2026-10-30：新版 `p09_check.sh` 全 PASS，含「app 開著不動 22 秒不得寫參數」）**。待拍板：關閉是否持久化（建議加明確的套用/持久化按鈕，與用戶暫不處理的「亮綠燈」同一區）。見 `todo.md` P0.10、`docs/unit-params-sudo-stdin.md` §8
+- **UI-1**: UI/UX 重新設計 — **已拍板、未施作**（2026-11-11）。範圍 = **只有 native**（`ui/fyneui/` + `i18n/locales/`）；
+    web 那一輪尚未排程（web 的 4K 內容只占視窗 18%、無設計 token，兩條缺陷本輪不修）。根因是
+    **缺設計 token（實測 15 種間距值、11 種 font-size）與缺欄位對齊**，不是缺框架；不換 GUI 框架。
+    施作面：theme wrapper（v2.7.4 的 `fyne.Theme` 只有 Color/Font/Icon/Size 四法）、Card 自繪邊框
+    （Fyne 的 Card renderer 只有 shadow 沒有邊框）、`widget.NewForm` + Select ≤320 px、Memory 三欄
+    （現況值塞在 label 括號裡）、Status 拆兩卡 + 定義列表、Presets 上移、nav rail（`ScrollToOffset`）。
+    **紅線：不得破壞 P0.10 的 `syncing` 守衛**。見 `docs/ui-redesign-plan.md`（含量測數據與驗收斷言）、`todo.md` UI-1
 - **Phase 7 (future)**: Decky Loader plugin — React frontend reused + Python shim calling CLI binary (`main.py`, `plugin.json`, distribution zip; `backend/src → backend/out → bin/` CI convention)
 
 ## License & Usage Rights

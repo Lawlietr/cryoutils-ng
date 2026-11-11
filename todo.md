@@ -1,5 +1,8 @@
 # CryoUtils NG — Todo
 
+> **待提醒（已拍板、未施作）**：**UI-1 UI/UX 重新設計** — 範圍 = **只有 native**；IA = 單頁 + 左側 nav rail。
+> 文件：`docs/ui-redesign-plan.md`（決策清單在檔頭）。細節見本檔 UI-1 節。
+
 ## Phase 0.5: CI/CD Infrastructure ✅
 - [x] `.github/dependabot.yml` — gomod weekly, npm weekly, ignore npm major, 5 PR limit
 - [x] `.github/workflows/dependabot-auto-merge.yml` — auto-merge patch/minor, major needs review
@@ -458,6 +461,84 @@
     永不達到。走 (a) 之後 spec 不依賴 server；若仍要接 stub，**必須加 `--no-sse`**（實測不加時該測試逾時失敗）
 - [ ] `web/tests/screenshots/` 那兩張 PNG 入版控、且由 fixture（假資料）產生：要嘛保留並標明
     provenance（已在 `tools/webstub/README.md` 標明），要嘛改成 CI artifact 上傳、版控不存二進位
+
+---
+
+## UI-1: UI/UX 重新設計（2026-11-11 開出，**未施作**）
+
+用戶回饋：UI 比原始項目彆腳、設置擠在一起、大小排序不整齊、不美觀。本輪只做**量測與設計規格**，
+**一項改動都沒做**。診斷數據、設計 token、版面規格、驗收斷言全部在 **`docs/ui-redesign-plan.md`**。
+
+### 已完成的調查（2026-11-11，Dev VM）
+
+- [x] web 兩條截圖（P0.11 那組）與 native Xvfb 截圖都逐項量過。native 新舊 PNG 逐位元組相同
+      （81,125 bytes）→ 舊截圖代表現況
+- [x] **web 沒有 4K 適配**：`#root { max-width: 720px }`（`App.css:34`）一條走到底，實測內容寬
+      688 px @1280（54%）與 688 px @3840（**18%**）→ 4K 兩側 3,156 px 純背景
+- [x] **「不整齊」的根因是沒有設計系統**：實測 15 種間距值（只算 padding/margin/gap）、
+      11 種 `font-size`（含 3 種互不相容的 `clamp()` 公式）；`:root` 只有顏色與 radius，
+      沒有 spacing／type scale
+- [x] **Memory 五行沒有值欄**：`.memory-item { justify-content: space-between }`（`App.css:189`）
+      → 中間空白 **395~539 px**（五行都不同）；label 起點對齊在 315/316，但右側群組貼齊 963、
+      起點只有 864 與 903 兩種 → 值字串左邊界隨字串長度飄移（無 value 欄）
+- [x] **Swap 兩行按鈕不同線**：控制件 465..574 vs 432..509（起點差 33 px）、按鈕 592..702 vs
+      526..591（起點差 66 px、寬 110 vs 65）；`.swap-row` flex + `label{min-width:100px}`，
+      控制件無寬度規則
+- [x] **Status 卡 12 筆塞 3 欄 ~204 px**，而 label 是 uppercase + letter-spacing 的 20+ 字元；
+      VRAM 是一張不顯示數值的空卡
+- [x] **native 的 4K 骨架是對的**（`contentMaxWidth = 1100` 在 1280/3840 都生效且置中、
+      `FYNE_SCALE=2` re-exec 生效）→ **不要推翻它**，要改的是內部對齊
+- [x] **native 的實際缺陷**：Status 兩欄中間空白 **478 px** 且左右欄語意交錯；Select 寬 **1,085 px**；
+      Card 在暗色主題下無可見邊界（六區塊連成一條長欄）；checkbox 未勾選對比過低；
+      1280×800 一屏只露出 3/6 區塊
+- [x] **三項懷疑已排除**（不要再查，見文件 §2.8）：native 標題字級不一致（實測 23.5/23/23.6 px 相同）、
+      web 卡間距不一致（實測 20~21 px 一致）、native 1100px 上限沒生效（生效）
+
+### 已拍板（2026-11-11，用戶；也寫進文件檔頭的決策清單）
+
+- [x] **IA = 單頁 + 左側 nav rail**（≥1200 logical px 出現，200 px 寬，5 個項目）。
+      響應式 tab 與摺疊區塊**否決**（理由見文件 §6）
+- [x] **Presets 上移**：新順序 Status → Presets → Swap → Memory → Game Data
+- [x] **VRAM 合併進 Status 卡 A**，獨立卡消失
+- [x] **施作範圍 = 只有 native**（`ui/fyneui/` + `i18n/locales/`）。**web 那一輪尚未排程**：
+      §2.2（web 4K 內容只占 18%）與 §2.6（web 無設計 token）的缺陷本輪不會被修掉
+
+### 施作順序（native only；每步都要過 gate）
+
+- [ ] Step 1 — theme wrapper：新增一個包住 `theme.DefaultTheme()` 的 `fyne.Theme` 實作。
+      v2.7.4 的 interface 只有 `Color`／`Font`／`Icon`／`Size` 四個方法，**沒有 `NewTheme` 建構子**。
+      把 §4 token 映到 `SizeNameText`、`SizeNameHeadingText`、`SizeNameSubHeadingText`、
+      `SizeNameCaptionText`（名稱是 `helperText`）、`SizeNamePadding`、`SizeNameInnerPadding`、
+      `SizeNameSeparatorThickness`
+- [ ] Step 2 — 區塊邊界：Fyne 的 `Card` renderer 用 `NewShadowingRenderer(…, CardLevel)` →
+      **只有陰影沒有邊框**，theme 也沒有 Card 邊框色名。要自畫 `canvas.Rectangle`
+      （`StrokeColor` = `theme.ColorNameSeparator`、`StrokeWidth = 1`），或改自訂 card-like 容器
+- [ ] Step 3 — Status 拆卡 A／卡 B + 固定 label 寬的定義列表（拿掉 `NewGridWithColumns(2)` 的
+      語意交錯、中間 478 px）；VRAM 併入卡 A（`sections_vram.go` 的卡消失）
+- [ ] Step 4 — Swap／Game Data 改 `widget.NewForm`，Select 上限 320 px（現況 1,085 px），
+      按鈕全部落到同一動作欄
+- [ ] Step 5 — Memory 三欄：名稱／固定寬值欄／開關（現況值是塞在 label 括號裡，沒有值欄）；
+      checkbox 未勾對比與 44 px hit target
+- [ ] Step 6 — 區塊順序改 Presets 上移；nav rail：`container.NewBorder` 第三參數、
+      `vScroll.ScrollToOffset(fyne.NewPos(0, sectionObj.Position().Y))`（v2.7.4 沒有 `ScrollTo(float32)`）、
+      **不得**註冊進 `addRefresher`；i18n 新增 5 鍵（en／zh-TW 同步）
+- [ ] Step 7 — 幾何斷言腳本進 `tools/`（附錄 A 已有可用片段）：native Xvfb 三解析度
+      （1280×800 / 2560×1440 / 3840×2160）×（zh-TW／en），存 `-before`/`-after`
+- [ ] Step 8 — 真機驗收（用戶在場）：4K 看 nav rail 出現且可點、Deck 1280×800 看它不出現；
+      驗收中翻轉的 kernel 參數／tmpfiles.d／log 狀態要收尾並列進回報
+
+每步的 gate：`ui/fyneui` 三支測試（`memory_state_test.go`、`swap_select_test.go`、`refresh_test.go`）
++ `CGO_ENABLED=1 /usr/local/go/bin/go vet ./...` + Xvfb 截圖對比。
+
+### 硬性紅線（施作時不能踩）
+
+- [ ] **改 native 版面不得破壞 P0.10 的 `syncing` 守衛**：`ui/fyneui/memory_state_test.go` 必須綠
+      （「把狀態同步進 widget」不等於「接受使用者輸入」）
+- [ ] 換 Select 實作要重跑 `ui/fyneui/swap_select_test.go`（P0.8：下拉要跟隨真實大小）與
+      `ui/fyneui/refresh_test.go`
+- [ ] 不動 `core/` 行為與既有 locale 鍵語意（新增 nav rail 標籤鍵除外）；**本輪不動 `web/src/`**；
+      web 端不補 sudo 密碼輸入（P0.5 缺口是獨立議題）
+- [ ] 垂直節奏不用改（實測本來就是一致的，見 §2.8）
 
 ---
 ## Phase 7 (future): Decky Loader Plugin
