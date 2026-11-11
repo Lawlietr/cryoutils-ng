@@ -618,6 +618,21 @@
       （1280×800 / 2560×1440 / 3840×2160）×（zh-TW／en）。**現況盤上沒有任何 native 截圖**
       （實測 `find` 只有 `web/tests/screenshots/` 那兩張 web PNG 與兩個 icon），
       沒有基線就無法證明 Step 1 之後的效果，也無法證明沒回歸。同步確認三支測試綠（本輪實測 `ok 0.732s`）。
+- [x] **Step 0 — 基線（完成 2026-11-11，Dev VM）**：工具收進 **`tools/ui1shots/`**
+      （`capture.sh` = CGO=1 建置 + Xvfb + `scrot`；`measure.py` = 幾何量測，顏色全部從圖檔取樣、
+      不寫死 theme 色值）。基線 6 張存 `tools/ui1shots/baseline/before-*.png`，
+      數字存 `before-geometry.json`。重點數字：
+      - 1280×800：視窗 1279×800（全螢幕）、**內容寬 1098 px**、置中偏移 +0.5 px → `contentMaxWidth` 生效且置中
+      - 3840×2160：視窗 3071×1728（80%）、**內容寬 2194 px** ≈ 1100 logical × scale 2
+      - 2560×1440：視窗 2047×1152（80%）、內容寬 2017 px → **cap 在 2560 不咬人**（1024 logical < 1100），
+        只有 4K 看得到 cap 的價值
+      - **最寬控件 1086 px**（文件 §2.7 記 1,085）→ Step 4 的目標是壓到 ≤320 logical px
+      - Status 各行 **dead gap 431–475 px**（文件 §2.7 記 478）→ Step 3 的定義列表要消掉它
+      - OCR（`tesseract -l chi_tra`）驗證中文實際渲染（`系統狀態`、`Swap 檔案`、`共享記憶體`）→ 字型 gate 過
+      - 新觀察：Dev VM 的 baseline 上 **`VRAM: 93GB`**（llvmpipe 的 `glxinfo` 值）→
+        再證明「VRAM 讀值不穩定」那條；這些 PNG 是**幾何**基準，不是 SteamOS 狀態基準
+      - 量測門檻（行 ≤3 px 空行、區塊 ≥22 px、x 簇 60 px）是照現況節奏定的，
+        **Step 1/2 改 token 時要一起檢查**，否則 section 計數會跳
 - [ ] Step 1 — theme wrapper：新增一個包住 `theme.DefaultTheme()` 的 `fyne.Theme` 實作。
       v2.7.4 的 interface 只有 `Color`／`Font`／`Icon`／`Size` 四個方法，**沒有 `NewTheme` 建構子**。
       把 §4 token 映到 `SizeNameText`、`SizeNameHeadingText`、`SizeNameSubHeadingText`、
@@ -637,6 +652,9 @@
       **不得**註冊進 `addRefresher`；i18n 新增 5 鍵（en／zh-TW 同步）
 - [ ] Step 7 — 幾何斷言腳本進 `tools/`（附錄 A 已有可用片段）：native Xvfb 三解析度
       （1280×800 / 2560×1440 / 3840×2160）×（zh-TW／en），存 `-before`/`-after`
+      → **前半已在 Step 0 完成**（截圖 + `before-geometry.json`）；本步只剩把
+      `measure.py --compare` 從「只印差值」變成好壞判定（例如內容寬 ≤ 1100×scale + 20 px、
+      Select 控件寬 ≤ 320×scale、Memory 值欄起點差 ≤ 2 px）
 - [ ] Step 8 — 真機驗收（用戶在場）：4K 看 nav rail 出現且可點、Deck 1280×800 看它不出現；
       驗收中翻轉的 kernel 參數／tmpfiles.d／log 狀態要收尾並列進回報
 

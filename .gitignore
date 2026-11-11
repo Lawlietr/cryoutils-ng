@@ -104,3 +104,6 @@ web/src/locales/
 # Local secrets (NEVER commit): ssh credentials for the real Steam Deck / Dev VM
 /.secrets
 .secrets/
+
+# UI-1 screenshot tooling: build + Xvfb/scrot scratch (the baseline PNGs are tracked)
+/tools/ui1shots/.build/
