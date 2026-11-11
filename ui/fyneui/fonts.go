@@ -18,7 +18,6 @@ package fyneui
 
 import (
 	"embed"
-	"image/color"
 	"io"
 
 	"fyne.io/fyne/v2"
@@ -46,16 +45,10 @@ func init() {
 	}
 }
 
-// customTheme wraps the default theme and substitutes CJK fonts.
-type customTheme struct {
-	inner fyne.Theme
-}
-
-func (c *customTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	return c.inner.Color(n, v)
-}
-
-func (c *customTheme) Font(style fyne.TextStyle) fyne.Resource {
+// cjkFont returns the embedded Noto Sans TC face for the requested style, so
+// Chinese text renders as glyphs instead of fallback boxes. The theme wrapper in
+// theme.go calls this from its Font method; the size tokens live there too.
+func cjkFont(style fyne.TextStyle) fyne.Resource {
 	if style.Bold {
 		if notoBold != nil {
 			return notoBold
@@ -65,12 +58,4 @@ func (c *customTheme) Font(style fyne.TextStyle) fyne.Resource {
 		return notoRegular
 	}
 	return theme.DefaultTheme().Font(style)
-}
-
-func (c *customTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(n)
-}
-
-func (c *customTheme) Size(n fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(n)
 }
