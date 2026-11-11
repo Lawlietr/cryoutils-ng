@@ -481,7 +481,22 @@
   **`develop` 分支不存在**（`contents/.github/workflows/release.yml?ref=develop` → 404）。
   所有 push 都進 `dev`，它不在觸發清單裡。
 - 本 repo 是 fork：`parent: CryoByte33/steam-deck-utilities`，2026-08-10 建立，`default_branch: main`。
-- `gh pr list --state all` → **零筆 PR**，所以 `dependabot-auto-merge.yml` 同樣從未執行。
+- `gh pr list --state all` → **零筆 PR**，所以 `auto-merge` 那條同樣從未執行。
+
+**為什麼 fork 之後就再也沒觸發過（逐層查證，2026-11-11）**：
+
+| 時間點 | `release.yml` 的觸發條件 | 後果 |
+|---|---|---|
+| 上游 `0abfd2e`（2023-02-22）起 | `on: push`（**無分支過濾**） | 上游每次 push 都跑。**上游 CI 確實跑過**：它的 Releases 有 `2.0-87`／`latest`／`develop`（最後一筆 2024-01-31），命名格式就是 `2.0-${{ github.run_number }}` |
+| 上游現況 | `origin/develop`（`43165b2`）裡仍是 `on: push` | 上游 `actions/runs` 回 `total_count: 0`，但 Releases 證明跑過 → run 歷史已被清除（停用 Actions 後 GitHub 會刪掉紀錄；查上游 permissions 回 403，無法直接證明） |
+| fork 後 `9cb1112`（2026-08-10） | 仍是 `on: push` | 這時候 push 會觸發；但 **fork 的 Actions 預設關閉**，要手動啟用 |
+| **`2aa79be`（2026-08-10，Phase 0.5 的 CI 現代化）** | 改成 `branches: [main, develop]` | **分水嶺**。過濾用的是上游的分支名 `develop`，但這個 fork 的工作分支叫 **`dev`** → 從此刻起沒有任何 push 能觸發 |
+
+- fork 上的 `develop` 已不在（`git/ref/heads/develop` → 404），remote 只剩 `dev` 與 `main`。
+- **本地 `origin/develop` 是 2023-11-29 的過期 remote-tracking ref**（`43165b2`）。它會讓人（與 agent）
+  從 `git branch -a` 誤以為 `develop` 存在、以為觸發條件寫對了。要收尾：`git remote prune origin`。
+- desktop 的 CGO 缺陷與分支過濾屬於同一個根源：**上游沒有 Fyne native UI，CGO=0 對上游是正確的**，
+  所以上游不會有 desktop 建置失敗；而我們的 fork 因分支過濾從未跑過，所以這個缺陷也沒有任何訊號。
 
 ### 事實 2：CI 的 desktop 建置命令已經失效，而且永遠不會報錯
 
