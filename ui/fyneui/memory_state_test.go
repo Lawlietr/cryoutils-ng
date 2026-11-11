@@ -91,17 +91,14 @@ func TestMemorySectionFollowsTheKernel(t *testing.T) {
 	c.refreshStatus = func() { t.Fatal("refreshStatus must not run in this test") }
 
 	section := sectionsMemory(c)
-	card, ok := section.(*widget.Card)
-	if !ok {
-		t.Fatalf("sectionsMemory returned %T, want *widget.Card", section)
-	}
 	if len(c.refreshers) != 1 {
 		t.Fatalf("memory section registered %d refresher(s), want 1", len(c.refreshers))
 	}
 
-	box, ok := card.Content.(*fyne.Container)
+	body := sectionBody(t, section)
+	box, ok := body.(*fyne.Container)
 	if !ok {
-		t.Fatalf("card content is %T, want a container", card.Content)
+		t.Fatalf("memory body is %T, want a container", body)
 	}
 	var checks []*widget.Check
 	for _, o := range box.Objects {

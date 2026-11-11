@@ -24,7 +24,7 @@ import (
 )
 
 // Design tokens. The single source of truth is docs/ui-redesign-plan.md §4.
-// The original complaint ("设置挤在一起、不整齊") traced back to 15 different
+// The original complaint ("設置擠在一起、不整齊") traced back to 15 different
 // spacing values and 11 font sizes with no ladder behind them, so a value that
 // is not in one of the ladders below must not be added. All numbers are logical
 // px; Fyne multiplies every theme size by the runtime scale, so scale 2 doubles
@@ -58,6 +58,25 @@ const (
 	ControlMaxWidth    = 320.0 // select and entry width cap, never full width
 	ButtonMinWidth     = 96.0
 	SeparatorWidth     = 1.0
+	RadiusCard         = 8.0 // same family as Fyne's own inputRadius (5)
+)
+
+// Surface colours, §4.4.
+//
+// Fyne draws no Card border, and on the dark theme its separator colour resolves
+// to opaque black (0,0,0), which is invisible against the window background that
+// measures (23,23,24). So the two steps a section box needs are declared here.
+// section_card_test keeps them far enough apart that a screenshot can tell card
+// from page (the same margin tools/ui1shots/measure.py measures with).
+var (
+	ColorSectionSurface = color.NRGBA{R: 34, G: 35, B: 39, A: 255}
+	ColorSectionBorder  = color.NRGBA{R: 72, G: 76, B: 84, A: 255}
+
+	// ColorInputSurface replaces Fyne's input fill inside the section boxes.
+	// Fyne's own value (32,32,35) sits only 1.04 contrast away from the card face
+	// measured above, which makes a select or entry disappear into the card it is
+	// standing on. The replacement reads as a shallow well instead.
+	ColorInputSurface = color.NRGBA{R: 16, G: 17, B: 19, A: 255}
 )
 
 // spacingLadder and typeLadder exist so the tests can reject a one-off value.
@@ -106,6 +125,9 @@ type customTheme struct {
 }
 
 func (c *customTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == theme.ColorNameInputBackground {
+		return ColorInputSurface
+	}
 	return c.inner.Color(name, variant)
 }
 

@@ -67,5 +67,5 @@ func sectionsPresets(c *uiCtx) fyne.CanvasObject {
 		)
 	})
 
-	return widget.NewCard(lang.T("presets.title"), "", container.NewHBox(btnRecommended, btnStock))
+	return sectionCard(lang.T("presets.title"), container.NewHBox(btnRecommended, btnStock))
 }

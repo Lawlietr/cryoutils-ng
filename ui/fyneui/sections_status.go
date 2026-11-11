@@ -70,7 +70,7 @@ func sectionsStatus(c *uiCtx) fyne.CanvasObject {
 		}, extra...)...,
 	)
 
-	return widget.NewCard(lang.T("status.title"), "", grid)
+	return sectionCard(lang.T("status.title"), grid)
 }
 
 func formatEnabled(val string, lang *i18n.Lang) string {

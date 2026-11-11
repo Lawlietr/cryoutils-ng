@@ -113,5 +113,5 @@ func sectionsMemory(c *uiCtx) fyne.CanvasObject {
 		}
 	})
 
-	return widget.NewCard(lang.T("memory.title"), "", box)
+	return sectionCard(lang.T("memory.title"), box)
 }

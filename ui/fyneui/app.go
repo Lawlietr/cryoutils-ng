@@ -176,7 +176,7 @@ func Run(e *core.Engine) {
 
 		header := container.NewHBox(title, refreshBtn, widget.NewLabel(lang.T("native.langMenu")), langSelect)
 
-		content := container.NewVBox(
+		content := stackSections(
 			banner,
 			statusBox,
 			sectionsSwap(c),

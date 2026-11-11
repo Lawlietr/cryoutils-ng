@@ -47,17 +47,14 @@ func TestSwapSectionRegistersRefresher(t *testing.T) {
 	c.auth = newAuthManager(e, win)
 
 	swapSection := sectionsSwap(c)
-	card, ok := swapSection.(*widget.Card)
-	if !ok {
-		t.Fatalf("sectionsSwap returned %T, want *widget.Card", swapSection)
-	}
 	if len(c.refreshers) != 1 {
 		t.Fatalf("swap section registered %d refresher(s), want 1", len(c.refreshers))
 	}
 
-	box, ok := card.Content.(*fyne.Container)
+	body := sectionBody(t, swapSection)
+	box, ok := body.(*fyne.Container)
 	if !ok {
-		t.Fatalf("card content is %T, want a container", card.Content)
+		t.Fatalf("swap body is %T, want a container", body)
 	}
 	var selectSize *widget.Select
 	for _, o := range box.Objects {

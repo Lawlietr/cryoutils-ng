@@ -99,7 +99,7 @@ func sectionsSwap(c *uiCtx) fyne.CanvasObject {
 		}
 	})
 
-	return widget.NewCard(lang.T("swap.title"), "", container.NewVBox(
+	return sectionCard(lang.T("swap.title"), container.NewVBox(
 		widget.NewLabel(lang.T("swap.swapSizeGB")),
 		selectSize,
 		btnResize,

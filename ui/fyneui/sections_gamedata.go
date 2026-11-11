@@ -111,7 +111,7 @@ func sectionsGameData(c *uiCtx) fyne.CanvasObject {
 		)
 	})
 
-	return widget.NewCard(lang.T("gamedata.title"), "", container.NewVBox(
+	return sectionCard(lang.T("gamedata.title"), container.NewVBox(
 		widget.NewLabel(lang.T("gamedata.ssdLibrary")),
 		ssdSelect,
 		widget.NewLabel(lang.T("gamedata.externalLibrary")),
